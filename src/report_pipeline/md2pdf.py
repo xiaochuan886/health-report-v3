@@ -657,13 +657,22 @@ class RiskBarFlowable(Flowable):
         return None
 
     def _parse_value(self, raw_result):
-        """Parse numeric value from result string."""
+        """Parse numeric value from result string, handling prefixes like '<'."""
         if raw_result is None:
             return None
-        try:
-            return float(str(raw_result).strip())
-        except (ValueError, TypeError):
+        s = str(raw_result).strip()
+        if not s or s in ('--', '/', '-'):
             return None
+        
+        # Handle prefix like '<1.20' -> 1.20; and avoid issues with regex if no digit
+        import re
+        m = re.search(r'[\d.]+', s)
+        if m:
+            try:
+                return float(m.group(0))
+            except ValueError:
+                return None
+        return None
 
     def _get_position(self, value, lower, upper):
         """Get slider position (0-1) for value within range."""
@@ -920,7 +929,6 @@ class RiskBarFlowable(Flowable):
         c.setFillColor(Color(0.5, 0.5, 0.5))
         c.setFont("Helvetica", 6)
         c.drawCentredString(w / 2, h / 2 - 3, "--")
-        c.drawCentredString(w / 2, bar_y + h / 2 - 3, "--")
 
 
 class ChapterMark(Flowable):

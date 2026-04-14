@@ -5,8 +5,13 @@ from pathlib import Path
 from report_pipeline.report_styles import format_display, indicator_display_name, risk_bar, status_label
 
 def _risk_bar_cell(row: dict) -> str:
-    """Return a risk bar cell."""
-    return risk_bar(row.get("risk_status"))
+    """Return a risk bar cell with encoded data for PDF rendering."""
+    raw_result = format_display(row.get("raw_result"))
+    raw_reference = format_display(row.get("raw_reference"))
+    risk_status = format_display(row.get("risk_status"))
+    # Unicode bar for markdown viewers; PDF extracts data-riskbar for RiskBarFlowable
+    text_bar = risk_bar(risk_status)
+    return f'<span data-riskbar="{raw_result};;{raw_reference};;{risk_status}">{text_bar}</span>'
 
 
 def _cell(value: str) -> str:
