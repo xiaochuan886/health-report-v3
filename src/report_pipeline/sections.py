@@ -146,15 +146,22 @@ def build_cancer_interpretations(enriched: pd.DataFrame, cancer_explanations: li
         exp = explanations_map.get(disease, {})
 
         by_type: dict[str, list[str]] = {}
-        risk_warnings: list[str] = []
         for row in ordered:
             ind_type = _clean_text(row.get("indicator_type"))
             short_name = _clean_text(row.get("indicator_short_name"))
-            if ind_type and short_name:
-                by_type.setdefault(ind_type, []).append(short_name)
             risk_status = _clean_text(row.get("risk_status"))
+            
+            display_name = short_name
             if risk_status not in {"normal", "正常", ""}:
-                risk_warnings.append(f"{short_name}({risk_status})")
+                if risk_status in {"above", "过量", "中毒"}:
+                    display_name = f"[RED]{short_name} ↑[/RED]"
+                elif risk_status in {"below", "严重缺乏", "缺乏", "不足"}:
+                    display_name = f"[RED]{short_name} ↓[/RED]"
+                else:
+                    display_name = f"[ORANGE]{short_name} ！[/ORANGE]"
+
+            if ind_type and short_name:
+                by_type.setdefault(ind_type, []).append(display_name)
 
         # 特异性在前，辅助判断在后，换行分隔
         type_order = [("特异性", "特异性"), ("辅助", "辅助判断")]
@@ -167,7 +174,7 @@ def build_cancer_interpretations(enriched: pd.DataFrame, cancer_explanations: li
         result.append({
             "disease_type": disease,
             "judgment_indicators": judgment_text,
-            "risk_warning": "、".join(risk_warnings) if risk_warnings else "--",
+            "risk_warning": "--",
             "common_causes": _clean_text(exp.get("common_causes")) or "--",
             "prevention_advice": _clean_text(exp.get("prevention_advice")) or "--",
         })
@@ -200,12 +207,17 @@ def build_cardio_interpretations(
         status = _clean_text(row.get("risk_status"))
         if status in {"above", "below", "near_upper", "near_lower"}:
             name = _clean_text(row.get("indicator_short_name"))
-            risk_warnings.append(f"{name}({status})")
+            if status in {"above", "过量", "中毒"}:
+                risk_warnings.append(f"[RED]{name} ↑[/RED]")
+            elif status in {"below", "严重缺乏", "缺乏", "不足"}:
+                risk_warnings.append(f"[RED]{name} ↓[/RED]")
+            else:
+                risk_warnings.append(f"[ORANGE]{name} ！[/ORANGE]")
 
     exp = explanations_map.get("心脑血管", {})
     return [{
         "disease_type": "心脑血管",
-        "risk_warning": "；".join(risk_warnings) if risk_warnings else "--",
+        "risk_warning": "异常指标: " + "、".join(risk_warnings) if risk_warnings else "--",
         "common_causes": _clean_text(exp.get("common_causes")) or "--",
         "prevention_advice": _clean_text(exp.get("prevention_advice")) or "--",
     }]

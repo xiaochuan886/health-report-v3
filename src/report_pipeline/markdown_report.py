@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from report_pipeline.report_styles import format_display, indicator_display_name, risk_bar, status_label
+from report_pipeline.report_styles import (
+    format_display,
+    get_status_arrow,
+    get_status_color,
+    get_status_summary_text,
+    indicator_display_name,
+    nutrition_indicator_display,
+    risk_bar,
+    status_label,
+)
 
 def _risk_bar_cell(row: dict) -> str:
     """Return a risk bar cell with encoded data for PDF rendering."""
@@ -14,18 +23,43 @@ def _risk_bar_cell(row: dict) -> str:
     return f'<span data-riskbar="{raw_result};;{raw_reference};;{risk_status}">{text_bar}</span>'
 
 
+def _result_badge_cell(row: dict, show_pill: bool = True) -> str:
+    """Return a result badge cell with encoded data for PDF rendering.
+    Encoding: result;;arrow;;summary_text;;color;;show_pill
+    """
+    result = format_display(row.get("raw_result"))
+    status = format_display(row.get("risk_status"))
+    arrow = get_status_arrow(status)
+    summary_text = get_status_summary_text(status)
+    color = get_status_color(status)
+    pill_val = "1" if show_pill else "0"
+    
+    # Use ';;' as separator
+    return f'<span data-badge="{result};;{arrow};;{summary_text};;{color};;{pill_val}">{result}</span>'
+
+
 def _cell(value: str) -> str:
     return format_display(value).replace("|", "\\|").replace("\r", "").replace("\n", "<br/>")
 
 
-def _nutrition_risk_label(row: dict) -> str:
-    """Return risk status for nutrition, or '--' for normal/unknown."""
+def _nutrition_item_cell(row: dict) -> str:
+    """Return indicator name colored and formatted according to its risk status."""
+    from report_pipeline.report_styles import indicator_display_name
+    name = indicator_display_name(row)
+    
+    if format_display(row.get("raw_reference")) in {"--", "/"}:
+        return name
+
     status = format_display(row.get("risk_status"))
-    if status in {"normal", "正常", "unknown", "暂无法判断"}:
-        return "--"
-    if status == "不足":
-        return "insufficient"
-    return status
+    if status in {"above", "过量", "中毒"}:
+        return f"[RED]{name} ↑[/RED]"
+    elif status in {"below", "严重缺乏", "缺乏", "不足"}:
+        return f"[RED]{name} ↓[/RED]"
+    elif status in {"near_upper", "near_lower"}:
+        return f"[ORANGE]{name} ！[/ORANGE]"
+    elif status not in {"normal", "正常", "unknown", "暂无法判断", "--", ""}:
+        return f"[ORANGE]{name} ！[/ORANGE]"
+    return name
 
 
 def _excerpt(value: str, limit: int = 140) -> str:
@@ -60,10 +94,8 @@ def _badge_cell(context: dict, qc_key: str) -> str:
 
 
 def generate_markdown_report(context: dict) -> str:
-    lines: list[str] = [
-        f"# {context['title']}",
-        "",
-    ]
+    lines: list[str] = []
+
 
     # 基础信息与质控校验表（合并）
     qc = context.get("quality_control", {})
@@ -105,19 +137,19 @@ def generate_markdown_report(context: dict) -> str:
     lines.extend(
         [
             _table(
-                ["指标", "结果", "单位", "参考值", "状态", "关联疾病风险"],
+                ["指标", "结果/状态", "单位", "参考值", "关联疾病风险"],
                 [
                     [
                         indicator_display_name(row),
-                        format_display(row.get("raw_result")),
+                        _result_badge_cell(row),
                         format_display(row.get("unit")),
                         format_display(row.get("raw_reference")),
-                        row.get("risk_status", ""),
                         format_display(row.get("related_diseases")),
                     ]
                     for row in cancer_summary_rows
+                    if format_display(row.get("raw_reference")) not in {"--", "/"}
                 ]
-                or [["--", "--", "--", "--", "本次未命中相关指标", "--"]],
+                or [["--", "--", "--", "--", "--"]],
             ),
             "",
         ]
@@ -128,18 +160,18 @@ def generate_markdown_report(context: dict) -> str:
             "### 心脑血管健康监测小结",
             "",
             _table(
-                ["指标", "结果", "单位", "参考值", "状态"],
+                ["指标", "结果/状态", "单位", "参考值"],
                 [
                     [
                         indicator_display_name(row),
-                        format_display(row.get("raw_result")),
+                        _result_badge_cell(row),
                         format_display(row.get("unit")),
                         format_display(row.get("raw_reference")),
-                        row.get("risk_status", ""),
                     ]
                     for row in context["summary_sections"].get("心脑血管健康监测小结", [])
+                    if format_display(row.get("raw_reference")) not in {"--", "/"}
                 ]
-                or [["--", "--", "--", "--", "本次未命中相关指标"]],
+                or [["--", "--", "--", "--"]],
             ),
             "",
         ]
@@ -150,21 +182,22 @@ def generate_markdown_report(context: dict) -> str:
     if nutrition_summary:
         nutrition_summary_rows = [
             [
-                row.get("category", ""),
                 indicator_display_name(row),
-                format_display(row.get("raw_result")),
+                _result_badge_cell(row),
                 format_display(row.get("unit")),
                 format_display(row.get("raw_reference")),
-                row.get("risk_status", ""),
             ]
             for row in nutrition_summary
+            if format_display(row.get("raw_reference")) not in {"--", "/"}
         ]
+        if not nutrition_summary_rows:
+            nutrition_summary_rows = [["--", "--", "--", "--"]]
     else:
-        nutrition_summary_rows = [["--", "--", "--", "--", "--", "本次检测无明显异常指标"]]
+        nutrition_summary_rows = [["--", "--", "--", "--"]]
     lines.extend([
         "### 大营养板块小结",
         "",
-        _table(["类别", "指标", "结果", "单位", "参考值", "状态"], nutrition_summary_rows),
+        _table(["指标", "结果/状态", "单位", "参考值"], nutrition_summary_rows),
         "",
     ])
 
@@ -206,31 +239,29 @@ def generate_markdown_report(context: dict) -> str:
                 [
                     [
                         indicator_display_name(row),
-                        format_display(row.get("raw_result")),
+                        _result_badge_cell(row, show_pill=False),
                         format_display(row.get("unit")),
                         format_display(row.get("raw_reference")),
                         _risk_bar_cell(row),
                     ]
                     for row in context["cancer_all_rows"]
                 ]
-                or [["--", "--", "--", "--", "本次未命中相关指标"]],
+                or [["--", "--", "--", "--", "--"]],
             ),
             "",
             "### 肿瘤健康监测释义",
             "",
             _table(
-                ["疾病类型", "判断指标", "风险预警", "常见诱发因素", "防癌管理建议"],
+                ["疾病类型 / 判断指标", "常见诱发因素", "防癌管理建议"],
                 [
                     [
-                        format_display(row.get("disease_type")),
-                        format_display(row.get("judgment_indicators")),
-                        format_display(row.get("risk_warning")),
-                        _excerpt(row.get("common_causes"), limit=80),
-                        _excerpt(row.get("prevention_advice"), limit=80),
+                        f"[TITLE]{format_display(row.get('disease_type'))}[/TITLE]<br/><br/>{format_display(row.get('judgment_indicators'))}",
+                        format_display(row.get("common_causes")),
+                        format_display(row.get("prevention_advice")),
                     ]
                     for row in context.get("cancer_interpretations", [])
                 ]
-                or [["--", "--", "--", "本次未命中相关指标", "--"]],
+                or [["--", "--", "--"]],
             ),
             "",
             "## 第三部分 心脑血管健康监测与指导",
@@ -242,30 +273,29 @@ def generate_markdown_report(context: dict) -> str:
                 [
                     [
                         indicator_display_name(row),
-                        format_display(row.get("raw_result")),
+                        _result_badge_cell(row, show_pill=False),
                         format_display(row.get("unit")),
                         format_display(row.get("raw_reference")),
                         _risk_bar_cell(row),
                     ]
                     for row in context["cardio_all_rows"]
                 ]
-                or [["--", "--", "--", "--", "本次未命中相关指标"]],
+                or [["--", "--", "--", "--", "--"]],
             ),
             "",
             "### 心脑血管健康释义",
             "",
             _table(
-                ["疾病类型", "风险预警", "常见诱因/因素", "健康管理建议"],
+                ["疾病类型 / 风险预警", "常见诱因/因素", "健康管理建议"],
                 [
                     [
-                        format_display(row.get("disease_type")),
-                        format_display(row.get("risk_warning")),
+                        f"[TITLE]{format_display(row.get('disease_type'))}[/TITLE]<br/><br/>{format_display(row.get('risk_warning'))}",
                         format_display(row.get("common_causes")),
                         format_display(row.get("prevention_advice")),
                     ]
                     for row in context.get("cardio_interpretations", [])
                 ]
-                or [["--", "--", "--", "--"]],
+                or [["--", "--", "--"]],
             ),
             "",
             "## 第四部分 大营养检测与建议",
@@ -285,14 +315,14 @@ def generate_markdown_report(context: dict) -> str:
                     [
                         [
                             indicator_display_name(row),
-                            format_display(row.get("raw_result")),
+                            _result_badge_cell(row, show_pill=False),
                             format_display(row.get("unit")),
                             format_display(row.get("raw_reference")),
                             _risk_bar_cell(row),
                         ]
                         for row in context["nutrition_sections"].get(section_name, [])
                     ]
-                    or [["--", "--", "--", "--", "本次未命中相关指标"]],
+                    or [["--", "--", "--", "--", "--"]],
                 ),
                 "",
             ]
@@ -305,17 +335,16 @@ def generate_markdown_report(context: dict) -> str:
         explain_rows = context["nutrition_explanations"].get(section_name, [])
         lines.append(
             _table(
-                ["项目", "风险预警", "临床表现 / 具体意义", "饮食补充 / 临床应用"],
+                ["项目", "临床表现 / 具体意义", "饮食补充 / 临床应用"],
                 [
                         [
-                            indicator_display_name(row),
-                            _nutrition_risk_label(row) if format_display(row.get("raw_reference")) not in {"--", "/"} else "--",
+                            _nutrition_item_cell(row),
                             _excerpt(row.get("indicator_meaning")),
                             _excerpt(row.get("indicator_application")),
                         ]
                     for row in explain_rows
                 ]
-                or [["--", "--", "本次未命中相关指标", "--"]],
+                or [["--", "本次未命中相关指标", "--"]],
             )
         )
         lines.append("")
@@ -342,28 +371,13 @@ def generate_markdown_report(context: dict) -> str:
         ]
     )
 
-    # Append health guide from external file if provided
+    # Append health guide from external file
     health_guide_path = context.get("health_guide_path")
     if health_guide_path and Path(health_guide_path).exists():
         health_guide_content = Path(health_guide_path).read_text(encoding="utf-8")
         lines.append(health_guide_content)
     else:
-        # Fallback to inline health guide items
-        lines.append("### 健康生活指南")
-        lines.append("")
-        for item in context.get("health_guide_items", []):
-            lines.append(item.replace("\n", "<br/>"))
-
-        # Add health guide images
-        health_guide_images = context.get("health_guide_images", [])
-        if health_guide_images:
-            lines.append("")
-            for img in health_guide_images:
-                img_path = img.get("path", "")
-                caption = img.get("caption", "")
-                lines.append(f"![{caption}]({img_path})")
-                if caption:
-                    lines.append(f"*{caption}*")
+        lines.append("> [!WARNING]\n> 健康生活指南内容缺失")
 
     lines.append("")
     return "\n".join(lines)

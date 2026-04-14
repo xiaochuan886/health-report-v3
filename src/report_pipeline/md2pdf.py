@@ -55,27 +55,27 @@ def _find_font(candidates):
 # Each role lists candidates for macOS, Windows, Linux in one flat list.
 _FONT_CANDIDATES = {
     "Sans": [
-        "/System/Library/Fonts/Supplemental/Arial.ttf",                          # macOS
+        ("/System/Library/Fonts/Helvetica.ttc", 0),                               # macOS
         "C:/Windows/Fonts/arial.ttf",                                            # Windows
         "/usr/share/fonts/truetype/crosextra/Carlito-Regular.ttf",               # Linux Debian
         "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",                   # Linux Noto
         "/usr/share/fonts/noto/NotoSans-Regular.ttf",                            # Linux Fedora
     ],
     "SansBold": [
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        ("/System/Library/Fonts/Helvetica.ttc", 1),                               # macOS Bold
         "C:/Windows/Fonts/arialbd.ttf",
         "/usr/share/fonts/truetype/crosextra/Carlito-Bold.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
         "/usr/share/fonts/noto/NotoSans-Bold.ttf",
     ],
     "SansIt": [
-        "/System/Library/Fonts/Supplemental/Arial Italic.ttf",
+        ("/System/Library/Fonts/Helvetica.ttc", 2),                               # macOS Oblique
         "C:/Windows/Fonts/ariali.ttf",
         "/usr/share/fonts/truetype/crosextra/Carlito-Italic.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-Italic.ttf",
     ],
     "SansBI": [
-        "/System/Library/Fonts/Supplemental/Arial Bold Italic.ttf",
+        ("/System/Library/Fonts/Helvetica.ttc", 3),                               # macOS Bold Oblique
         "C:/Windows/Fonts/arialbi.ttf",
         "/usr/share/fonts/truetype/crosextra/Carlito-BoldItalic.ttf",
         "/usr/share/fonts/truetype/noto/NotoSans-BoldItalic.ttf",
@@ -108,22 +108,23 @@ _FONT_CANDIDATES = {
         "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
     ],
     "CJK": [
+        ("/System/Library/Fonts/STHeiti Light.ttc", 0),                           # macOS STHeiti
+        "C:/Windows/Fonts/msyh.ttc",                                             # Windows MSYH (微软雅黑)
         ("/System/Library/Fonts/Supplemental/Songti.ttc", 0),                   # macOS Songti SC
         "C:/Windows/Fonts/simsun.ttc",                                           # Windows SimSun (宋体)
-        "C:/Windows/Fonts/msyh.ttc",                                             # Windows MSYH (微软雅黑)
-        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",              # Linux Noto CJK
-        "/usr/share/fonts/noto-cjk/NotoSerifCJK-Regular.ttc",                   # Linux Fedora
-        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",            # Linux Droid
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",               # Linux Noto Sans CJK
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
         "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",                  # macOS fallback
     ],
     "CJKBold": [
+        ("/System/Library/Fonts/STHeiti Medium.ttc", 0),                          # macOS STHeiti Medium
+        "C:/Windows/Fonts/msyhbd.ttc",                                           # Windows MSYH Bold
         ("/System/Library/Fonts/Supplemental/Songti.ttc", 1),
         "C:/Windows/Fonts/simsunb.ttf",
-        "C:/Windows/Fonts/msyhbd.ttc",
-        "/usr/share/fonts/opentype/noto/NotoSerifCJK-Bold.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSerifCJK-Bold.ttc",
-        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
     ],
     "Mono": [
         ("/System/Library/Fonts/Menlo.ttc", 0),                                  # macOS
@@ -166,6 +167,8 @@ def register_fonts():
                                   italic="SansIt", boldItalic="SansBI")
     pdfmetrics.registerFontFamily("Serif", normal="Serif", bold="SerifBold",
                                   italic="SerifIt", boldItalic="SerifBI")
+    pdfmetrics.registerFontFamily("CJK", normal="CJK", bold="CJKBold",
+                                  italic="CJK", boldItalic="CJKBold")
 
 # ═══════════════════════════════════════════════════════════════════════
 # THEMES — each theme has colors + layout for real typographic difference
@@ -184,7 +187,7 @@ def register_fonts():
 
 _DEFAULT_LAYOUT = {
     "margins": (25, 22, 28, 25),
-    "body_font": "Serif", "body_size": 10.5, "body_leading": 17,
+    "body_font": "Sans", "body_size": 10.5, "body_leading": 17,
     "h1_size": 26, "h2_size": 18, "h3_size": 12,
     "heading_align": "center", "heading_decoration": "rules",
     "header_style": "full", "code_style": "bg", "cover_style": "centered",
@@ -197,7 +200,7 @@ THEMES = {
         "accent":"#CC785C","accent_light":"#D99A82","border":"#E8E6DC",
         "watermark_rgba":(0.82,0.80,0.76,0.12),
         "layout": {
-            "body_font":"Serif","body_size":10.5,"body_leading":17,
+            "body_font":"Sans","body_size":10.5,"body_leading":17,
             "heading_align":"center","heading_decoration":"rules",
             "header_style":"full","code_style":"bg","cover_style":"centered",
             "page_decoration":"top-bar",
@@ -223,6 +226,17 @@ THEMES = {
             "heading_align":"left","heading_decoration":"none",
             "header_style":"minimal","code_style":"bg","cover_style":"left-aligned",
             "page_decoration":"left-stripe",
+        }
+    },
+    "corporate-blue": {
+        "canvas":"#FFFFFF","canvas_sec":"#F0F8FA","ink":"#1A1A1A","ink_faded":"#5A6A75",
+        "accent":"#007ec0","accent_light":"#8cba77","border":"#D0D7DE",
+        "watermark_rgba":(0.80,0.85,0.85,0.08),
+        "layout": {
+            "body_font":"Sans","body_size":10.5,"body_leading":17,
+            "heading_align":"center","heading_decoration":"rules",
+            "header_style":"full","code_style":"bg","cover_style":"centered",
+            "page_decoration":"top-bar",
         }
     },
     "solarized-light": {
@@ -363,6 +377,7 @@ def load_theme(name, theme_file=None):
 # CJK DETECTION + FONT WRAPPING
 # ═══════════════════════════════════════════════════════════════════════
 _CJK_RANGES = [
+    (0x2190,0x21FF), # Arrows (↑, ↓, etc.)
     (0x4E00,0x9FFF),(0x3400,0x4DBF),(0xF900,0xFAFF),(0x3000,0x303F),
     (0xFF00,0xFFEF),(0x2E80,0x2EFF),(0x2F00,0x2FDF),(0xFE30,0xFE4F),
     (0x20000,0x2A6DF),(0x2A700,0x2B73F),(0x2B740,0x2B81F),
@@ -509,6 +524,15 @@ def md_inline(text, accent_hex="#CC785C"):
         rf"<font name='Mono' size='8' color='{accent_hex}'>\1</font>", text)
     text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
     text = re.sub(r'\[(.+?)\]\(.+?\)', r'<u>\1</u>', text)
+
+    text = text.replace("[RED]", "<font color='#E53E3E'><b>")
+    text = text.replace("[/RED]", "</b></font>")
+    text = text.replace("[ORANGE]", "<font color='#DD6B20'><b>")
+    text = text.replace("[/ORANGE]", "</b></font>")
+    
+    text = text.replace("[TITLE]", "<font size='14'><b>")
+    text = text.replace("[/TITLE]", "</b></font>")
+
     return _font_wrap(text)
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -519,51 +543,110 @@ _outline_level = [-1]
 _cur_chapter = [""]
 
 
-class BadgeFlowable(Flowable):
-    """Vector badge with green rounded rectangle and white text - always crisp."""
-    def __init__(self, text="合格", width=46, height=15, radius=3):
+class MedicalResultFlowable(Flowable):
+    """Modern medical report result style: bold text, arrows, and optional background pills."""
+    def __init__(self, value="", arrow="", status_text="", color="#2D3748", width=62, height=26, show_pill=True):
         Flowable.__init__(self)
-        self.text = text
+        self.value = value
+        self.arrow = arrow
+        self.status_text = status_text
+        self.color = color if isinstance(color, Color) else HexColor(color)
         self.width = width
         self.height = height
+        self.show_pill = show_pill
+        # Determine background color (soft 12% tint for abnormal results)
+        self.bg_color = None
+        if self.show_pill and (self.arrow or self.status_text):
+            self.bg_color = Color(self.color.red, self.color.green, self.color.blue, alpha=0.12)
+
+    def draw(self):
+        c = self.canv
+        
+        # Soft background pill for abnormal results (if enabled)
+        if self.bg_color and self.show_pill:
+            c.setFillColor(self.bg_color)
+            c.roundRect(0, 1, self.width, self.height - 2, 4, fill=1, stroke=0)
+
+        c.setFillColor(self.color)
+        # Use Bold only for abnormal indicators to maintain harmony
+        is_abnormal = bool(self.arrow or self.status_text)
+        font_main = "SansBold" if is_abnormal else "Sans"
+        font_cjk = "CJK"
+        
+        # Line 1: Value + Arrow (Reduced to 9.2)
+        val_size = 9.2
+        try:
+            c.setFont(font_main, val_size)
+        except Exception:
+            c.setFont("Helvetica-Bold" if is_abnormal else "Helvetica", val_size)
+            
+        # Draw value first
+        val_text = str(self.value)
+        val_w = c.stringWidth(val_text, font_main, val_size)
+        
+        arrow_w = 0
+        if self.arrow:
+            # Force CJK font for arrow
+            c.setFont(font_cjk, val_size)
+            arrow_w = c.stringWidth(f" {self.arrow}", font_cjk, val_size)
+            
+        # Calculate start X to center the combined group
+        total_w = val_w + arrow_w
+        x_start = (self.width - total_w) / 2
+        
+        if self.status_text:
+            # Dual line layout
+            y1 = self.height / 2 + 1.5
+            c.setFont(font_main, val_size)
+            c.drawString(x_start, y1, val_text)
+            if self.arrow:
+                c.setFont(font_cjk, val_size)
+                c.drawString(x_start + val_w, y1, f" {self.arrow}")
+            
+            # Line 2: Status Text Label (Further reduced to 5.8)
+            status_size = 5.8
+            c.setFont(font_cjk, status_size)
+            sw = c.stringWidth(self.status_text, font_cjk, status_size)
+            sx = (self.width - sw) / 2
+            y2 = self.height / 2 - 8.5
+            c.drawString(sx, y2, self.status_text)
+        else:
+            # Single line centered (normal results)
+            y = (self.height - val_size) / 2 + 2
+            c.setFont(font_main, val_size)
+            c.drawString(x_start, y, val_text)
+            if self.arrow:
+                c.setFont(font_cjk, val_size)
+                c.drawString(x_start + val_w, y, f" {self.arrow}")
+
+
+class BadgeFlowable(MedicalResultFlowable):
+    """Restore the original stamp look for indicators like '合格'."""
+    def __init__(self, text="合格", color="#2E8B57", width=46, height=15, radius=3, **kwargs):
+        # We call the medical initializer but we'll override the draw method for the stamp look
+        super().__init__(value=text, color=color, width=width, height=height)
         self.radius = radius
 
     def draw(self):
-        from reportlab.lib.colors import Color, white
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
         c = self.canv
+        # Draw the stamp border (Qualified look)
+        c.setStrokeColor(self.color)
+        c.setLineWidth(1)
+        c.roundRect(0, 0, self.width, self.height, self.radius, fill=0, stroke=1)
 
-        # Green rounded rectangle background
-        green_color = Color(0x2E/255, 0x8B/255, 0x57/255)  # #2E8B57
-        c.setFillColor(green_color)
-        c.setStrokeColor(green_color)
-        c.roundRect(0, 0, self.width, self.height, self.radius, fill=1, stroke=0)
-
-        # White text centered
-        c.setFillColor(white)
-        c.setStrokeColor(white)
-
-        # Try to register and use CJK font
-        font_name = "Helvetica"
-        try:
-            pdfmetrics.registerFont(TTFont("BadgeCJK", "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"))
-            font_name = "BadgeCJK"
-        except Exception:
-            pass
-
-        c.setFont(font_name, 8)
-
-        # Vertical centering - try different values to visually center
+        # Text matching the border color
+        c.setFillColor(self.color)
+        font_name = "CJK"
         font_size = 8
-        # For 8pt font in 15pt box: baseline should be around 4-5pt from bottom
-        y = 4  # adjusted for visual centering
+        try:
+            c.setFont(font_name, font_size)
+        except Exception:
+            c.setFont("Helvetica", font_size)
 
-        # Horizontal centering with manual calculation
-        text_width = c.stringWidth(self.text, font_name, font_size)
+        text_width = c.stringWidth(self.value, font_name, font_size)
         x = (self.width - text_width) / 2
-        c.drawString(x, y, self.text)
-
+        y = (self.height - font_size) / 2 + 1.2
+        c.drawString(x, y, self.value)
 
 class RiskBarFlowable(Flowable):
     """Risk bar chart showing indicator position relative to reference range.
@@ -781,13 +864,13 @@ class RiskBarFlowable(Flowable):
         h = self.BAR_HEIGHT
         x, y = 0, bar_y
 
-        # Color gradient: green -> yellow(30%) -> red
+        # Color gradient: green -> yellow -> red
         # The reference range is in the middle, extremes are red
         color_stops = [
-            (0.0, Color(1, 0, 0)),      # 0%: red (far below)
-            (0.3, Color(1, 1, 0)),       # 30%: yellow
-            (0.5, Color(0.2, 0.8, 0.2)),  # 50%: green (center/range start)
-            (0.7, Color(1, 1, 0)),        # 70%: yellow
+            (0.0, Color(1, 0, 0)),        # 0%: red (far below)
+            (0.2, Color(1, 1, 0)),        # 20%: yellow (lower limit)
+            (0.5, Color(0.2, 0.8, 0.2)),  # 50%: green (center)
+            (0.8, Color(1, 1, 0)),        # 80%: yellow (upper limit)
             (1.0, Color(1, 0, 0)),        # 100%: red (far above)
         ]
 
@@ -795,8 +878,8 @@ class RiskBarFlowable(Flowable):
         self._draw_gradient_bar(c, x, y, w, h, color_stops)
 
         # Draw range markers
-        range_start_pct = 0.3  # lower bound starts at 30%
-        range_end_pct = 0.7    # upper bound ends at 70%
+        range_start_pct = 0.2  # lower bound starts at 20%
+        range_end_pct = 0.8    # upper bound ends at 80%
 
         c.setStrokeColor(Color(0.3, 0.3, 0.3))
         c.setLineWidth(1)
@@ -824,19 +907,10 @@ class RiskBarFlowable(Flowable):
                     pos = 0.5
                 else:
                     pos = (value - lower) / (upper - lower)
-                    pos = 0.3 + pos * 0.4  # Scale to range portion
+                    pos = 0.2 + pos * 0.6  # Scale to range portion (20-80%)
                 slider_x = x + w * pos
         else:
             slider_x = x + w / 2
-
-        # Draw overflow indicator if needed
-        if is_above or is_below:
-            # Draw overflow portion in red
-            c.setFillColor(Color(1, 0.2, 0.2))
-            if is_above:
-                c.rect(x + w * 0.7, y, w * 0.3, h, fill=1, stroke=0)
-            if is_below:
-                c.rect(x, y, w * 0.3, h, fill=1, stroke=0)
 
         # Draw slider
         self._draw_slider(c, slider_x - 4, y, 8, h, is_above, is_below)
@@ -1002,10 +1076,10 @@ class PDFBuilder:
         bf = L["body_font"]  # "Serif" or "Sans"
         bs, bl = L["body_size"], L["body_leading"]
         h_align = TA_CENTER if L["heading_align"] == "center" else TA_LEFT
-        s['part'] = ParagraphStyle('Part', fontName="Serif", fontSize=L["h1_size"],
+        s['part'] = ParagraphStyle('Part', fontName=f"{bf}Bold", fontSize=L["h1_size"],
             leading=L["h1_size"]+10, textColor=T["ink"], alignment=h_align,
             spaceBefore=0, spaceAfter=0)
-        s['chapter'] = ParagraphStyle('Ch', fontName="Serif", fontSize=L["h2_size"],
+        s['chapter'] = ParagraphStyle('Ch', fontName=f"{bf}Bold", fontSize=L["h2_size"],
             leading=L["h2_size"]+8, textColor=T["ink"], alignment=h_align,
             spaceBefore=0, spaceAfter=0)
         s['h3'] = ParagraphStyle('H3', fontName="SansBold", fontSize=L["h3_size"],
@@ -1032,12 +1106,12 @@ class PDFBuilder:
                 textColor=HexColor("#3D3D3A"), alignment=TA_LEFT, spaceBefore=4, spaceAfter=4,
                 leftIndent=8, rightIndent=8, backColor=T["canvas_sec"],
                 borderColor=T["border"], borderWidth=0.5, borderPadding=6)
-        s['toc1'] = ParagraphStyle('T1', fontName="Serif", fontSize=12, leading=20,
+        s['toc1'] = ParagraphStyle('T1', fontName=f"{bf}Bold", fontSize=12, leading=20,
             textColor=T["ink"], leftIndent=0, spaceBefore=6, spaceAfter=2)
         s['toc2'] = ParagraphStyle('T2', fontName="Sans", fontSize=10, leading=16,
             textColor=T["ink_faded"], leftIndent=16, spaceBefore=1, spaceAfter=1)
         s['th'] = ParagraphStyle('TH', fontName="SansBold", fontSize=8.5, leading=12,
-            textColor=white, alignment=TA_CENTER)
+            textColor=white, alignment=TA_LEFT)
         s['tc'] = ParagraphStyle('TC', fontName="Sans", fontSize=8, leading=11,
             textColor=T["ink"], alignment=TA_LEFT)
         return s
@@ -1066,6 +1140,16 @@ class PDFBuilder:
         # Top accent bar
         c.setFillColor(T["accent"])
         c.rect(0, self.page_h - 3*mm, self.page_w, 3*mm, fill=1, stroke=0)
+
+        # Draw logo if provided
+        logo = self.cfg.get("logo", "")
+        if logo and os.path.exists(logo):
+            try:
+                logo_w = 40*mm
+                c.drawImage(logo, cx - logo_w/2, self.page_h - 40*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
+            except Exception:
+                pass
+
 
         title_y = self.page_h * 0.62
         c.setFillColor(T["ink"])
@@ -1318,9 +1402,20 @@ class PDFBuilder:
             c.setStrokeColor(T["border"]); c.setLineWidth(0.5)
             c.line(self.lm, self.page_h - 20*mm, self.page_w - self.rm, self.page_h - 20*mm)
             c.setFillColor(T["ink_faded"])
+            
+            logo = self.cfg.get("logo", "")
+            title_lx = self.lm
+            if logo and os.path.exists(logo):
+                try:
+                    c.drawImage(logo, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
+                    title_lx = self.lm + 25*mm
+                except Exception:
+                    pass
+
             header_title = self.cfg.get("header_title", "")
             if header_title:
-                _draw_mixed(c, self.lm, self.page_h - 18*mm, header_title, 8)
+                _draw_mixed(c, title_lx, self.page_h - 15*mm, header_title, 8)
+
             ch = _cur_chapter[0]
             if ch:
                 _draw_mixed(c, self.page_w - self.rm, self.page_h - 18*mm, ch[:40], 8, anchor="right")
@@ -1411,13 +1506,37 @@ class PDFBuilder:
                         height=16,
                     )
 
+            # Check for result badge data span
+            badge_match = re.search(r'data-badge="([^"]+)"', cell)
+            if badge_match:
+                parts = badge_match.group(1).split(';;')
+                if len(parts) >= 4:
+                    val, arrow, text, color = parts[:4]
+                    show_pill = True
+                    if len(parts) >= 5:
+                        show_pill = parts[4] == "1"
+                        
+                    return MedicalResultFlowable(
+                        value=val,
+                        arrow=arrow,
+                        status_text=text,
+                        color=color,
+                        width=68 if text else 52,
+                        height=28 if text else 18,
+                        show_pill=show_pill
+                    )
+
+            # Check if cell contains 'STAMP_合格' marker (used as fallback for missing badges)
+            if cell.strip() == "STAMP_合格":
+                return BadgeFlowable(text="合格", width=36, height=15, radius=2)
+
             # Check if cell contains an image: ![alt](path)
             img_match = re.match(r'^!\[([^\]]*)\]\(([^)]+)\)$', cell.strip())
             if img_match:
                 img_path = img_match.group(2)
                 # Check if this is a badge image - use vector badge for crisp rendering
                 if 'badge' in img_path.lower() or '合格' in img_path:
-                    return BadgeFlowable(text="合格", width=46, height=15, radius=3)
+                    return BadgeFlowable(text="合格", width=36, height=15, radius=2)
 
                 # Resolve relative path using base_dir from config
                 base_dir = self.cfg.get("base_dir", "")
@@ -1426,7 +1545,7 @@ class PDFBuilder:
                 # Flatten transparency if PNG with alpha
                 img_src = _flatten_transparency(img_path)
                 try:
-                    img = RLImage(img_src, width=46, height=15)
+                    img = RLImage(img_src, width=36, height=15)
                     return img
                 except Exception:
                     # Fallback to text if image fails
@@ -1444,7 +1563,20 @@ class PDFBuilder:
 
         # Assessment result tables: 指标, 结果, 单位, 参考值, 风险刻度
         if header_text in ['指标 结果 单位 参考值 风险刻度', '指标 结果 单位 参考值 状态']:
-            cw = [avail * 0.32, avail * 0.12, avail * 0.12, avail * 0.12, avail * 0.32]
+            cw = [avail * 0.32, avail * 0.12, avail * 0.12, avail * 0.17, avail * 0.27]
+        # Summary tables with reordered columns (Result after Indicator)
+        elif header_text == '指标 结果/状态 单位 参考值 关联疾病风险':
+            # 5 columns for Cancer Summary
+            cw = [avail * 0.34, avail * 0.18, avail * 0.10, avail * 0.15, avail * 0.23]
+        elif header_text == '指标 结果/状态 单位 参考值':
+            # 4 columns for Cardio and Nutrition Summaries
+            cw = [avail * 0.44, avail * 0.20, avail * 0.16, avail * 0.20]
+        elif header_text in ['疾病类型 / 判断指标 常见诱发因素 防癌管理建议', '疾病类型 / 风险预警 常见诱因/因素 健康管理建议']:
+            # 3 columns for merged cancer and cardio interpretations, first column 30%
+            cw = [avail * 0.30, avail * 0.35, avail * 0.35]
+        elif header_text == '项目 临床表现 / 具体意义 饮食补充 / 临床应用':
+            # 3 columns for Nutrition explanations, first column 25%
+            cw = [avail * 0.25, avail * 0.375, avail * 0.375]
         else:
             # Default: proportional width based on content
             max_lens = [max((len(r[ci]) if ci < len(r) else 0) for r in [header]+data) for ci in range(nc)]
@@ -1460,15 +1592,24 @@ class PDFBuilder:
                         if oi != ci: cw[oi] -= deficit; break
         T = self.T
         t = Table(td, colWidths=cw, repeatRows=1)
-        t.setStyle(TableStyle([
+        ts = [
             ('BACKGROUND',(0,0),(-1,0), T["accent"]),
             ('TEXTCOLOR',(0,0),(-1,0), white),
             ('ROWBACKGROUNDS',(0,1),(-1,-1), [white, T["canvas_sec"]]),
             ('GRID',(0,0),(-1,-1), 0.5, T["border"]),
-            ('VALIGN',(0,0),(-1,-1),'TOP'),
-            ('LEFTPADDING',(0,0),(-1,-1),5),('RIGHTPADDING',(0,0),(-1,-1),5),
-            ('TOPPADDING',(0,0),(-1,-1),3),('BOTTOMPADDING',(0,0),(-1,-1),3),
-        ]))
+            ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+            ('LEFTPADDING',(0,0),(-1,-1),6),('RIGHTPADDING',(0,0),(-1,-1),6),
+            ('TOPPADDING',(0,0),(-1,-1),6),('BOTTOMPADDING',(0,0),(-1,-1),6),
+        ]
+        
+        # Center align specific columns for result tables (2nd column to last)
+        # Match if the header starts with common result column sequence
+        if header_text.startswith('指标 结果 单位 参考值'):
+            ts.append(('ALIGN', (1, 0), (-1, -1), 'CENTER'))
+        elif header_text == '项目 内容':
+            ts.append(('ALIGN', (0, 0), (-1, -1), 'LEFT'))
+            
+        t.setStyle(TableStyle(ts))
         return t
 
     # ── Markdown → Story ──
@@ -1862,6 +2003,7 @@ def main():
     parser.add_argument("--copyright", default="", help="Back cover copyright text")
     parser.add_argument("--code-max-lines", default=30, type=int, help="Max lines per code block before truncation")
     parser.add_argument("--base-dir", default="", help="Base directory for resolving relative image paths")
+    parser.add_argument("--logo", default="", help="Path to company logo")
     parser.add_argument("--first-h1-inline", default=False, type=lambda x: x.lower() == 'true', help="Render first H1 inline without divider page")
     parser.add_argument("--h2-top-ratio", default=0.05, type=float, help="Top spacer ratio for H2 headings (0.0-1.0)")
     args = parser.parse_args()
@@ -1903,6 +2045,7 @@ def main():
         "copyright": args.copyright,
         "code_max_lines": args.code_max_lines,
         "base_dir": args.base_dir,
+        "logo": args.logo,
         "first_h1_inline": args.first_h1_inline,
         "h2_top_ratio": args.h2_top_ratio,
     }
