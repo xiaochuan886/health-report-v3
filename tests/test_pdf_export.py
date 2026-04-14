@@ -12,9 +12,10 @@ from report_pipeline.pdf_export import (
 
 
 def test_build_md2pdf_command_contains_expected_arguments():
+    import sys
     command = build_md2pdf_command("report.md", "report.pdf", "综合健康检测报告", "检测机构")
 
-    assert command[0] == "/opt/anaconda3/bin/python"
+    assert command[0] == sys.executable
     assert "--input" in command
     assert "--theme" in command
     assert "warm-academic" in command

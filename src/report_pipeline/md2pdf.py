@@ -634,6 +634,8 @@ class RiskBarFlowable(Flowable):
                         lower = float(parts[0].strip())
                         upper = float(parts[1].strip())
                         if lower < upper:
+                            if lower == 0:
+                                return {'type': 'upper', 'upper': upper}
                             return {'type': 'dual', 'lower': lower, 'upper': upper}
                     except ValueError:
                         pass

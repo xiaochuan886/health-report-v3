@@ -68,7 +68,7 @@
   负责生成 `report.md`，把报告固定结构输出成 Markdown。
 
 - `src/report_pipeline/pdf_export.py`
-  负责调用本地 `md2pdf` 脚本生成 PDF，并注入本地 `.vendor` 依赖环境。
+  负责调用本地 `md2pdf` 脚本生成 PDF，自动识别当前 Python 虚拟环境。
 
 ### 命令入口层
 
@@ -83,15 +83,15 @@
 ### 1. 运行测试
 
 ```bash
-cd '/Users/re.stem/综合健康检测报告v3.0'
-/opt/anaconda3/bin/python -m pytest -q
+cd '综合健康检测报告v3.0'
+./.venv/bin/python -m pytest tests/
 ```
 
 ### 2. 生成中间结果
 
 ```bash
-cd '/Users/re.stem/综合健康检测报告v3.0'
-PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli extract \
+cd '综合健康检测报告v3.0'
+./.venv/bin/python -m report_pipeline.cli extract \
   --lab-xls '/path/to/customer.xls' \
   --standard-xlsx '/path/to/standard.xlsx' \
   --output-dir output/customer-run
@@ -100,11 +100,18 @@ PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli extract \
 ### 3. 生成 Markdown 和 PDF
 
 ```bash
-cd '/Users/re.stem/综合健康检测报告v3.0'
-PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli render \
+cd '综合健康检测报告v3.0'
+./.venv/bin/python -m report_pipeline.cli render \
   --input-dir output/customer-run \
   --markdown-output output/customer-run/report.md \
   --pdf-output output/customer-run/report.pdf
+```
+
+### 4. 快捷渲染脚本
+
+可以使用项目根目录下的快捷脚本：
+```bash
+./run_render.py
 ```
 
 ## 当前首版输出
@@ -114,20 +121,16 @@ PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli render \
 - `output/customer-run/report.md`
 - `output/customer-run/report.pdf`
 
-## 依赖说明
+项目采用本地虚拟环境管理依赖，建议使用 Python 3.11 或 3.12。
 
-项目运行依赖：
+安装环境：
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install pandas openpyxl pypdf reportlab pillow pytest
+```
 
-- Python 3.11
-- `pandas`
-- `openpyxl`
-- `pypdf`
-
-PDF 渲染额外依赖：
-
-- `reportlab`
-
-当前仓库内已使用本地目录 `.vendor/` 安装 `reportlab`，供 `md2pdf` 调用。
+项目代码已实现环境自适应，只要在虚拟环境下运行，`md2pdf` 也会自动使用虚拟环境中的依赖。
 
 ## 当前限制
 

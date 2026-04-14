@@ -11,3 +11,4 @@ output/
 *.pdf
 *.xls
 *.xlsx
+.venv/

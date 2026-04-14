@@ -12,7 +12,6 @@ from pypdf.generic import NameObject
 
 
 MD2PDF_SCRIPT = Path(__file__).parent / "md2pdf.py"
-LOCAL_VENDOR = Path("/Users/re.stem/综合健康检测报告v3.0/.vendor")
 
 # Green badge visual parameters
 _BADGE_WIDTH = 42       # pt
@@ -27,7 +26,7 @@ def build_md2pdf_command(markdown_path: str, pdf_path: str, title: str, author: 
     base_dir = str(Path(markdown_path).parent.resolve())
 
     return [
-        "/opt/anaconda3/bin/python",
+        sys.executable,
         str(MD2PDF_SCRIPT),
         "--input",
         markdown_path,
@@ -151,16 +150,10 @@ def _create_stamp_overlay(page_width: float, page_height: float, positions: list
 
     Uses reportlab to draw green rounded rectangles with white "合格" text.
     """
-    sys.path.insert(0, str(LOCAL_VENDOR))
-    try:
-        from reportlab.lib.colors import Color
-        from reportlab.pdfgen import canvas
-        from reportlab.pdfbase import pdfmetrics
-        from reportlab.pdfbase.ttfonts import TTFont
-    finally:
-        # Remove the vendor path to avoid side effects
-        if str(LOCAL_VENDOR) in sys.path:
-            sys.path.remove(str(LOCAL_VENDOR))
+    from reportlab.lib.colors import Color
+    from reportlab.pdfgen import canvas
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
 
     # Register CJK font for Chinese text in badge
     cjk_candidates = [
@@ -309,11 +302,8 @@ def _apply_stamp_badges(page, writer) -> None:
 
 def export_pdf(markdown_path: str, pdf_path: str, title: str, author: str) -> None:
     command = build_md2pdf_command(markdown_path, pdf_path, title, author)
-    env = os.environ.copy()
-    pythonpath = env.get("PYTHONPATH", "")
-    vendor_prefix = str(LOCAL_VENDOR)
-    env["PYTHONPATH"] = f"{vendor_prefix}:{pythonpath}" if pythonpath else vendor_prefix
-    result = subprocess.run(command, capture_output=True, text=True, env=env)
+    # Use current environment for subprocess
+    result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "md2pdf export failed")
 
