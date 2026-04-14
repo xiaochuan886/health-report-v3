@@ -593,6 +593,9 @@ class RiskBarFlowable(Flowable):
 
     def draw(self):
         c = self.canv
+        # Shift bar up to leave space for triangle below
+        # Triangle height is ~5.2, gap is 1.0, so bar_y should be >= 6.2
+        by = 6.5
 
         # Parse reference range
         ref_info = self._parse_reference(self.raw_reference)
@@ -607,11 +610,11 @@ class RiskBarFlowable(Flowable):
 
         # Calculate positions
         if ref_type == 'dual':
-            self._draw_dual_bar(c, value, lower, upper)
+            self._draw_dual_bar(c, value, lower, upper, bar_y=by)
         elif ref_type == 'upper':
-            self._draw_upper_only_bar(c, value, upper)
+            self._draw_upper_only_bar(c, value, upper, bar_y=by)
         elif ref_type == 'lower':
-            self._draw_lower_only_bar(c, value, lower)
+            self._draw_lower_only_bar(c, value, lower, bar_y=by)
         else:
             self._draw_no_data(c)
 
@@ -740,48 +743,35 @@ class RiskBarFlowable(Flowable):
         return color_stops[-1][1]
 
     def _draw_slider(self, c, x, y, w, h, is_above=False, is_below=False):
-        """Draw the slider/triangle marker."""
-        from reportlab.lib.colors import Color, black
+        """Draw a small equilateral triangle below the bar pointing up."""
+        from reportlab.lib.colors import Color
 
-        slider_w = self.SLIDER_WIDTH
-        slider_h = self.SLIDER_HEIGHT
-
-        # Slider color based on status
+        # Slider color based on status: red for abnormal, dark gray for normal
         if is_above or is_below:
-            slider_color = Color(1, 0, 0)  # Red for overflow
+            slider_color = Color(0.85, 0.1, 0.1)  # Slightly better red
         else:
             slider_color = Color(0.2, 0.2, 0.2)  # Dark gray
 
         c.setFillColor(slider_color)
         c.setStrokeColor(slider_color)
 
-        # Draw triangle pointing up or down
-        cx = x + w / 2
-        if is_above:
-            # Triangle pointing up (above upper limit)
-            path = c.beginPath()
-            path.moveTo(cx - slider_w / 2, y + h + 1)
-            path.lineTo(cx + slider_w / 2, y + h + 1)
-            path.lineTo(cx, y + h + slider_h - 2)
-            path.close()
-            c.drawPath(path, fill=1, stroke=0)
-        elif is_below:
-            # Triangle pointing down (below lower limit)
-            path = c.beginPath()
-            path.moveTo(cx - slider_w / 2, y - slider_h + 2)
-            path.lineTo(cx + slider_w / 2, y - slider_h + 2)
-            path.lineTo(cx, y - 1)
-            path.close()
-            c.drawPath(path, fill=1, stroke=0)
-        else:
-            # Diamond shape for in-range
-            path = c.beginPath()
-            path.moveTo(cx, y + h + slider_h / 2)
-            path.lineTo(cx + slider_w / 2, y + h / 2)
-            path.lineTo(cx, y + h - slider_h / 2)
-            path.lineTo(cx - slider_w / 2, y + h / 2)
-            path.close()
-            c.drawPath(path, fill=1, stroke=0)
+        cx = x + w / 2  # Center X
+        
+        # Equilateral triangle dimensions
+        s = 6.0  # side length
+        th = s * 0.866  # triangle height (sqrt(3)/2)
+        
+        # Position: Peak points UP towards the bar bottom (y)
+        gap = 1.0
+        peak_y = y - gap
+        base_y = peak_y - th
+        
+        path = c.beginPath()
+        path.moveTo(cx, peak_y)                  # Peak point
+        path.lineTo(cx - s/2, base_y)            # Left base point
+        path.lineTo(cx + s/2, base_y)            # Right base point
+        path.close()
+        c.drawPath(path, fill=1, stroke=0)
 
     def _draw_dual_bar(self, c, value, lower, upper, bar_y=0):
         """Draw bar with dual range (both lower and upper limits)."""
@@ -1416,7 +1406,7 @@ class PDFBuilder:
                         raw_reference=raw_reference,
                         risk_status=risk_status,
                         width=80,
-                        height=12,
+                        height=16,
                     )
 
             # Check if cell contains an image: ![alt](path)
