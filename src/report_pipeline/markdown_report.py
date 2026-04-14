@@ -120,14 +120,14 @@ def generate_markdown_report(context: dict) -> str:
         ["审核人", qc.get("reviewers", "--")],
     ]
     lines.extend([
-        "## 基础信息与质控校验表",
+        "# 基础信息与质控校验表",
         "",
         _table(["项目", "内容"], qc_rows),
         "",
     ])
 
     lines.extend([
-        "## 第一部分 评估结果小结",
+        "# 第一部分 评估结果小结",
         "",
         "### 癌症健康监测小结",
         "",
@@ -230,7 +230,7 @@ def generate_markdown_report(context: dict) -> str:
     ])
 
     lines.extend([
-        "## 第二部分 癌症健康监测与指导",
+        "# 第二部分 癌症健康监测与指导",
             "",
             "### 评估结果检测",
             "",
@@ -264,7 +264,7 @@ def generate_markdown_report(context: dict) -> str:
                 or [["--", "--", "--"]],
             ),
             "",
-            "## 第三部分 心脑血管健康监测与指导",
+            "# 第三部分 心脑血管健康监测与指导",
             "",
             "### 评估结果检测",
             "",
@@ -298,7 +298,7 @@ def generate_markdown_report(context: dict) -> str:
                 or [["--", "--", "--"]],
             ),
             "",
-            "## 第四部分 大营养检测与建议",
+            "# 第四部分 大营养检测与建议",
             "",
             "### 4-1 评估结果检测",
             "",
@@ -351,7 +351,7 @@ def generate_markdown_report(context: dict) -> str:
 
     lines.extend(
         [
-            "## 医学名词释义",
+            "# 医学名词释义",
             "",
             "### 医学名词释义",
             "",

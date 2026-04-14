@@ -494,21 +494,29 @@ def esc_code(text):
 
 
 def _flatten_transparency(img_path: str):
-    """Convert transparent PNG to white background for correct PDF rendering.
+    """Convert transparent PNG (or images with alpha/transparency) to white background
+    for consistent PDF rendering. Handles RGBA, LA, PA, and P (with trans) modes.
 
-    Returns the original path if no conversion needed, or a BytesIO with
-    the flattened image if the source has an alpha channel.
+    Returns the original path if no conversion needed or PIL missing, or a BytesIO
+    with the flattened RGB image.
     """
+    if not img_path or not os.path.exists(img_path):
+        return img_path
     try:
         from PIL import Image as PILImage
         img = PILImage.open(img_path)
-        if img.mode in ('RGBA', 'LA', 'PA'):
+        
+        # Check if translation is needed: alpha channel or palette transparency
+        has_alpha = img.mode in ('RGBA', 'LA', 'PA')
+        has_trans = (img.mode == 'P' and 'transparency' in img.info)
+        
+        if has_alpha or has_trans:
+            # Convert to RGBA to normalize all transparency types
+            rgba = img.convert('RGBA')
+            # Composite onto pure white background
             bg = PILImage.new('RGB', img.size, (255, 255, 255))
-            if img.mode == 'RGBA':
-                bg.paste(img, mask=img.split()[3])
-            else:
-                rgba = img.convert('RGBA')
-                bg.paste(rgba, mask=rgba.split()[3])
+            bg.paste(rgba, mask=rgba.split()[3])
+            
             buf = io.BytesIO()
             bg.save(buf, format='PNG')
             buf.seek(0)
@@ -1145,8 +1153,14 @@ class PDFBuilder:
         logo = self.cfg.get("logo", "")
         if logo and os.path.exists(logo):
             try:
+                # Resolve relative path
+                base_dir = self.cfg.get("base_dir", "")
+                if base_dir and not os.path.isabs(logo):
+                    logo = os.path.join(base_dir, logo)
+                    
+                img_src = _flatten_transparency(logo)
                 logo_w = 40*mm
-                c.drawImage(logo, cx - logo_w/2, self.page_h - 40*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
+                c.drawImage(img_src, cx - logo_w/2, self.page_h - 40*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
             except Exception:
                 pass
 
@@ -1277,7 +1291,13 @@ class PDFBuilder:
             avail_w = self.page_w - 2 * margin
             avail_h = self.page_h - 2 * margin
             try:
-                c.drawImage(fp, margin, margin, width=avail_w, height=avail_h,
+                # Resolve relative path using base_dir
+                base_dir = self.cfg.get("base_dir", "")
+                if base_dir and not os.path.isabs(fp):
+                    fp = os.path.join(base_dir, fp)
+                    
+                img_src = _flatten_transparency(fp)
+                c.drawImage(img_src, margin, margin, width=avail_w, height=avail_h,
                             preserveAspectRatio=True, anchor='c', mask='auto')
             except Exception:
                 pass
@@ -1301,7 +1321,13 @@ class PDFBuilder:
             banner_x = (self.page_w - banner_w) / 2
             banner_y = cy - banner_h / 2 + 15*mm
             try:
-                c.drawImage(banner, banner_x, banner_y, width=banner_w,
+                # Resolve relative path
+                base_dir = self.cfg.get("base_dir", "")
+                if base_dir and not os.path.isabs(banner):
+                    banner = os.path.join(base_dir, banner)
+                    
+                img_src = _flatten_transparency(banner)
+                c.drawImage(img_src, banner_x, banner_y, width=banner_w,
                             height=banner_h, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
@@ -1407,7 +1433,13 @@ class PDFBuilder:
             title_lx = self.lm
             if logo and os.path.exists(logo):
                 try:
-                    c.drawImage(logo, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
+                    # Resolve relative path
+                    base_dir = self.cfg.get("base_dir", "")
+                    if base_dir and not os.path.isabs(logo):
+                        logo = os.path.join(base_dir, logo)
+                        
+                    img_src = _flatten_transparency(logo)
+                    c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
                     title_lx = self.lm + 25*mm
                 except Exception:
                     pass
@@ -1671,48 +1703,37 @@ class PDFBuilder:
             if stripped in ('---','\\newpage','') or stripped.startswith(('title:','subtitle:','author:','date:')):
                 i += 1; continue
 
-            # H1 — Part heading: first H1 rendered inline, subsequent as divider page
-            if re.match(r'^# (第.+部分|附录)', stripped) or \
-               (re.match(r'^# .+', stripped) and not stripped.startswith('## ')):
-                if re.match(r'^# .+', stripped):
-                    title = stripped.lstrip('#').strip()
-                    if not first_h1_done and self.cfg.get("first_h1_inline", False):
-                        # First H1: render as simple title at top, no page break
-                        first_h1_done = True
-                        cm = ChapterMark(title, level=0); story.append(cm)
-                        story.append(Spacer(1, 5*mm))
-                        story.append(Paragraph(md_inline(title, ah), ST['part']))
-                        story.append(Spacer(1, 5*mm))
-                        toc.append(('part', title, cm.key))
-                    else:
-                        # Subsequent H1: full divider page
-                        first_h1_done = True
-                        story.append(PageBreak())
-                        cm = ChapterMark(title, level=0); story.append(cm)
-                        hdeco = self.L["heading_decoration"]
-                        story.append(Spacer(1, self.body_h * 0.35))
-                        if hdeco == "rules":
-                            story.append(HRuleCentered(self.body_w, 40*mm, 0.8, self.T["accent"]))
-                            story.append(Spacer(1, 8*mm))
-                        story.append(Paragraph(md_inline(title, ah), ST['part']))
-                        if hdeco == "rules":
-                            story.append(Spacer(1, 8*mm))
-                            story.append(HRuleCentered(self.body_w, 25*mm, 0.8, self.T["accent"]))
-                        elif hdeco == "underline":
-                            story.append(Spacer(1, 4*mm))
-                            story.append(HRule(self.body_w, 1.0, self.T["accent"]))
-                        elif hdeco == "dot":
-                            story.append(Spacer(1, 6*mm))
-                            story.append(ClayDot(self.body_w, self.T["accent"]))
-                        toc.append(('part', title, cm.key))
-                    i += 1; continue
+            # H1 — Part heading: normal top-aligned heading
+            if (re.match(r'^# (第.+部分|附录)', stripped) or \
+               (re.match(r'^# .+', stripped) and not stripped.startswith('## '))):
+                title = stripped.lstrip('#').strip()
+                story.append(PageBreak())
+                first_h1_done = True
+                cm = ChapterMark(title, level=0); story.append(cm)
+                
+                # Normal top spacer instead of centered
+                h1_top_ratio = self.cfg.get("h2_top_ratio", 0.05)
+                story.append(Spacer(1, self.body_h * h1_top_ratio))
+                
+                hdeco = self.L["heading_decoration"]
+                story.append(Paragraph(md_inline(title, ah), ST['part']))
+                
+                if hdeco == "rules":
+                    story.append(Spacer(1, 4*mm))
+                    story.append(HRuleCentered(self.body_w, 40*mm, 1.2, self.T["accent"]))
+                elif hdeco == "underline":
+                    story.append(Spacer(1, 4*mm))
+                    story.append(HRule(self.body_w, 1.0, self.T["accent"]))
+                elif hdeco == "dot":
+                    story.append(Spacer(1, 6*mm))
+                    story.append(ClayDot(self.body_w, self.T["accent"]))
+                toc.append(('part', title, cm.key))
+                i += 1; continue
 
             # H2 — Chapter heading
             if stripped.startswith('## '):
                 title = stripped[3:].strip()
-                # Skip page break for first H2 when first_h1_inline is enabled
-                if not (not first_h2_done and self.cfg.get("first_h1_inline", False)):
-                    story.append(PageBreak())
+                story.append(PageBreak())
                 first_h2_done = True
                 cm = ChapterMark(title, level=1); story.append(cm)
                 hdeco = self.L["heading_decoration"]
