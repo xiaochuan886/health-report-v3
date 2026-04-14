@@ -1,0 +1,13 @@
+.DS_Store
+.pytest_cache/
+__pycache__/
+*.pyc
+
+.vendor/
+
+output/
+!output/.gitkeep
+
+*.pdf
+*.xls
+*.xlsx
