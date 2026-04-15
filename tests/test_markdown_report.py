@@ -36,14 +36,17 @@ def test_generate_markdown_report_contains_required_sections():
 
     markdown = generate_markdown_report(context)
 
-    assert "# 综合健康检测报告" in markdown
-    assert "## 基础信息与质控校验表" in markdown
+    assert "# 基础信息与质控校验表" in markdown
     assert "## 基础信息" not in markdown or "基础信息与质控校验表" in markdown
     assert "## 质控校验表" not in markdown
-    assert "## 第一部分 评估结果小结" in markdown
-    assert "## 第三部分 心脑血管健康监测与指导" in markdown
-    assert "## 第四部分 大营养检测与建议" in markdown
-    assert "## 医学名词释义" in markdown
+    assert "# 第一部分 评估结果小结" in markdown
+    assert "# 第三部分 心脑血管健康监测与指导" in markdown
+    assert "# 第四部分 大营养检测与建议" in markdown
+    assert "# 第五部分 医学名词释义" in markdown
+    # Patient info moved to cover, not in markdown table
+    assert "| 姓名" not in markdown
+    assert "| 性别" not in markdown
+    assert "| 年龄" not in markdown
 
 
 def test_merged_table_contains_patient_info():
@@ -95,10 +98,10 @@ def test_merged_table_contains_patient_info():
 
     markdown = generate_markdown_report(context)
 
-    # Patient info in merged table
-    assert "边伟星" in markdown
-    assert "男" in markdown
-    assert "56" in markdown
+    # Patient info no longer in markdown table (moved to cover)
+    assert "| 姓名" not in markdown
+    assert "| 性别" not in markdown
+    assert "| 年龄" not in markdown
 
     # QC fields present
     assert "采样日期" in markdown
@@ -135,5 +138,5 @@ def test_no_duplicate_sections():
     # Old section names should not appear
     assert "\n## 基础信息\n" not in markdown
     assert "\n## 质控校验表\n" not in markdown
-    # Merged section should appear
-    assert "## 基础信息与质控校验表" in markdown
+    # Merged section should appear as H1
+    assert "# 基础信息与质控校验表" in markdown

@@ -21,11 +21,20 @@ _BADGE_COLOR = (0.18, 0.55, 0.34)  # #2E8B57 sea green
 _STAMP_MARKER = "STAMP_合格"
 
 
-def build_md2pdf_command(markdown_path: str, pdf_path: str, title: str, author: str) -> list[str]:
+def build_md2pdf_command(
+    markdown_path: str,
+    pdf_path: str,
+    title: str,
+    author: str,
+    patient_name: str = "",
+    report_date: str = "",
+    institution_name: str = "",
+    cover_patient: str = "",
+) -> list[str]:
     # Resolve base directory from markdown file location (for image paths)
     base_dir = str(Path(markdown_path).parent.resolve())
 
-    return [
+    cmd = [
         sys.executable,
         str(MD2PDF_SCRIPT),
         "--input",
@@ -35,11 +44,11 @@ def build_md2pdf_command(markdown_path: str, pdf_path: str, title: str, author: 
         "--title",
         title,
         "--author",
-        author,
+        institution_name or author,
         "--header-title",
         title,
         "--footer-left",
-        author,
+        institution_name or author,
         "--theme",
         "corporate-blue",
         "--logo",
@@ -49,6 +58,13 @@ def build_md2pdf_command(markdown_path: str, pdf_path: str, title: str, author: 
         "--first-h1-inline", "true",
         "--base-dir", base_dir,
     ]
+    if patient_name:
+        cmd.extend(["--header-right", patient_name])
+    if report_date:
+        cmd.extend(["--date", report_date])
+    if cover_patient:
+        cmd.extend(["--cover-patient", cover_patient])
+    return cmd
 
 
 def _find_stamp_page(pdf_path: str) -> int | None:
@@ -302,8 +318,23 @@ def _apply_stamp_badges(page, writer) -> None:
         page[NameObject("/Contents")] = arr
 
 
-def export_pdf(markdown_path: str, pdf_path: str, title: str, author: str) -> None:
-    command = build_md2pdf_command(markdown_path, pdf_path, title, author)
+def export_pdf(
+    markdown_path: str,
+    pdf_path: str,
+    title: str,
+    author: str,
+    patient_name: str = "",
+    report_date: str = "",
+    institution_name: str = "",
+    cover_patient: str = "",
+) -> None:
+    command = build_md2pdf_command(
+        markdown_path, pdf_path, title, author,
+        patient_name=patient_name,
+        report_date=report_date,
+        institution_name=institution_name,
+        cover_patient=cover_patient,
+    )
     # Use current environment for subprocess
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:

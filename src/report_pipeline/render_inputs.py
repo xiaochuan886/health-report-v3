@@ -26,6 +26,7 @@ def load_render_bundle(input_dir: str | Path) -> dict[str, Any]:
     cardio_interp_path = base / "cardio_interpretations.json"
     personal_info_path = base / "personal_info.json"
     quality_control_path = base / "quality_control.json"
+    report_config_path = base / "report_config.json"
     return {
         "input_dir": str(base),
         "matched_rows": _read_json(base / "matched_indicators.json"),
@@ -35,6 +36,7 @@ def load_render_bundle(input_dir: str | Path) -> dict[str, Any]:
         "cardio_interpretations": _read_json(cardio_interp_path) if cardio_interp_path.exists() else [],
         "personal_info": _read_json(personal_info_path) if personal_info_path.exists() else {},
         "quality_control": _read_json(quality_control_path) if quality_control_path.exists() else {},
+        "report_config": _read_json(report_config_path) if report_config_path.exists() else {},
     }
 
 
@@ -113,10 +115,12 @@ def build_render_context(bundle: dict[str, Any]) -> dict[str, Any]:
         if risk_status and risk_status not in {"normal", "正常", ""}:
             abnormal_nutrition.append({**row, "category": "维生素"})
 
-    # Resolve health guide path: prefer bundle-specific guide, else use global shared one
-    input_guide = Path(bundle.get("input_dir", "")) / "health_guide.md"
+    # Resolve health guide path: always use canonical source under src/data/
     shared_guide = Path(__file__).parent / "data" / "health_guide.md"
-    final_guide_path = str(input_guide if input_guide.exists() else shared_guide)
+    final_guide_path = str(shared_guide)
+
+    report_config = bundle.get("report_config", {})
+    quality_control = bundle.get("quality_control", {})
 
     return {
         "title": "综合健康检测报告",
@@ -127,6 +131,8 @@ def build_render_context(bundle: dict[str, Any]) -> dict[str, Any]:
         "received_at": _clean(first.get("received_at")),
         "reported_at": _clean(first.get("reported_at")),
         "hospital_name": _clean(first.get("送检医院")),
+        "institution_name": report_config.get("机构名称", ""),
+        "report_date": quality_control.get("report_date", ""),
         "summary_sections": summary_sections,
         "cancer_summary_rows": cancer_summary_rows,
         "cancer_all_rows": cancer_all_rows,
@@ -149,7 +155,7 @@ def build_render_context(bundle: dict[str, Any]) -> dict[str, Any]:
         },
         "general_check": general_check,
         "nutrition_summary": abnormal_nutrition,
-        "quality_control": bundle.get("quality_control", {}),
+        "quality_control": quality_control,
         "glossary_rows": list(glossary_map.values()),
         "health_guide_path": final_guide_path,
     }

@@ -18,7 +18,7 @@ def test_build_md2pdf_command_contains_expected_arguments():
     assert command[0] == sys.executable
     assert "--input" in command
     assert "--theme" in command
-    assert "warm-academic" in command
+    assert "corporate-blue" in command
     # Verify health report specific flags
     assert "--cover" in command
     assert "--toc" in command

@@ -11,28 +11,28 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```bash
 # 运行全部测试
 cd '/Users/re.stem/综合健康检测报告v3.0'
-/opt/anaconda3/bin/python -m pytest -q
+./.venv/bin/python -m pytest -q --ignore=scratch
 
 # 运行单个测试文件
-/opt/anaconda3/bin/python -m pytest -q tests/test_sources.py
+./.venv/bin/python -m pytest -q tests/test_sources.py
 
 # 运行单个测试函数
-/opt/anaconda3/bin/python -m pytest -q tests/test_sources.py::test_function_name
+./.venv/bin/python -m pytest -q tests/test_sources.py::test_function_name
 
 # 生成中间结果 JSON
-PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli extract \
+PYTHONPATH=src ./.venv/bin/python -m report_pipeline.cli extract \
   --lab-xls '/path/to/customer.xls' \
   --standard-xlsx '/path/to/standard.xlsx' \
   --output-dir output/customer-run
 
 # 生成 Markdown 和 PDF
-PYTHONPATH=src /opt/anaconda3/bin/python -m report_pipeline.cli render \
+PYTHONPATH=src ./.venv/bin/python -m report_pipeline.cli render \
   --input-dir output/customer-run \
   --markdown-output output/customer-run/report.md \
   --pdf-output output/customer-run/report.pdf
 ```
 
-Python 解释器使用 `/opt/anaconda3/bin/python`。`pytest` 配置已在 `pyproject.toml` 中设置 `pythonpath = ["src"]`。
+Python 解释器使用项目本地虚拟环境 `.venv/bin/python`。`pytest` 配置已在 `pyproject.toml` 中设置 `pythonpath = ["src"]`。`scratch/` 目录下的旧脚本不参与测试。
 
 ## 架构
 
@@ -51,10 +51,10 @@ Python 解释器使用 `/opt/anaconda3/bin/python`。`pytest` 配置已在 `pypr
 
 ### 报告渲染层（render）
 
-- **render_inputs.py** — 读取 JSON，构建模板上下文（含癌种分组、大营养说明、医学释义等）
-- **markdown_report.py** — 将上下文输出为 `report.md`，固定五部分结构（基础信息→评估小结→癌筛→心筛→大营养→释义/指南）
+- **render_inputs.py** — 读取 JSON，构建模板上下文（含癌种分组、大营养说明、医学释义等）；健康指南始终从 `src/report_pipeline/data/health_guide.md` 读取，不使用 output 目录缓存
+- **markdown_report.py** — 将上下文输出为 `report.md`，固定六部分结构（基础信息→第一部分评估小结→第二部分癌筛→第三部分心筛→第四部分大营养→第五部分释义→第六部分健康指南）
 - **report_styles.py** — 渲染工具（状态文案映射、风险刻度条、空值显示）
-- **pdf_export.py** — 调用本地 `md2pdf` 脚本生成 PDF，注入 `.vendor` 依赖
+- **pdf_export.py** — 调用本地 `md2pdf` 脚本生成 PDF
 
 ### 数据流
 
@@ -75,8 +75,7 @@ customer.xls + standard.xlsx
 
 ## 依赖
 
-运行时：pandas, openpyxl, pypdf（Python 3.11，Anaconda 环境）
-PDF 渲染：reportlab（本地 `.vendor/` 目录，不安装到系统）
+运行时：pandas, openpyxl, pypdf, reportlab, pillow（Python 3.12，本地 `.venv` 虚拟环境）
 PDF 工具：`~/.agents/skills/lovstudio-any2pdf/scripts/md2pdf.py`
 
 ## 规则文档

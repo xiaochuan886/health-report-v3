@@ -295,6 +295,16 @@ def run_extract(lab_xls: str, standard_xlsx: str, output_dir: str, personal_info
         if "特殊指标参考值" in workbook.sheet_names
         else pd.DataFrame(columns=["指标简称", "性别", "参考值", "说明"])
     )
+    report_config_df = (
+        pd.read_excel(standard_xlsx, sheet_name="报告配置")
+        if "报告配置" in workbook.sheet_names
+        else pd.DataFrame(columns=["配置项", "值"])
+    )
+    report_config = {
+        _clean_text(row.get("配置项")): _clean_text(row.get("值"))
+        for _, row in report_config_df.iterrows()
+        if _clean_text(row.get("配置项"))
+    }
 
     matched = match_indicators(normalized_lab, whitelist, patient_gender=_patient_gender(raw_lab))
     matched = _join_indicator_descriptions(matched, descriptions)
@@ -359,7 +369,7 @@ def run_extract(lab_xls: str, standard_xlsx: str, output_dir: str, personal_info
     summary_rows = _json_safe(summary)
     nutrition_rows = _json_safe(nutrition)
 
-    export_outputs(matched_rows, summary_rows, nutrition_rows, cancer_explanations_rows, _json_safe(cancer_interpretations), _json_safe(cardio_interpretations), personal_info, quality_control, output_dir)
+    export_outputs(matched_rows, summary_rows, nutrition_rows, cancer_explanations_rows, _json_safe(cancer_interpretations), _json_safe(cardio_interpretations), personal_info, quality_control, report_config, output_dir)
     return {
         "matched_rows": matched_rows,
         "summary_sections": summary_rows,
@@ -369,6 +379,7 @@ def run_extract(lab_xls: str, standard_xlsx: str, output_dir: str, personal_info
         "cardio_interpretations": cardio_interpretations,
         "personal_info": personal_info,
         "quality_control": quality_control,
+        "report_config": report_config,
     }
 
 
@@ -384,7 +395,7 @@ def _clean_cancer_explanations(df: pd.DataFrame) -> list[dict]:
     return rows
 
 
-def export_outputs(matched_rows, summary, nutrition, cancer_explanations, cancer_interpretations, cardio_interpretations, personal_info, quality_control, output_dir):
+def export_outputs(matched_rows, summary, nutrition, cancer_explanations, cancer_interpretations, cardio_interpretations, personal_info, quality_control, report_config, output_dir):
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -422,18 +433,29 @@ def export_outputs(matched_rows, summary, nutrition, cancer_explanations, cancer
             json.dumps(quality_control, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+    if report_config:
+        (output_path / "report_config.json").write_text(
+            json.dumps(report_config, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
 
     # Copy fixed health guide files to output directory
     _copy_health_guide(output_path)
 
 
 def _copy_health_guide(output_path: Path) -> None:
-    """Copy the fixed health guide markdown and images to the output directory."""
+    """Copy the fixed health guide markdown and images to the output directory.
+
+    Always overwrites so output stays in sync with the canonical source.
+    """
     data_dir = Path(__file__).parent / "data"
     guide_src = data_dir / "health_guide.md"
     images_src = data_dir / "health_guide_images"
 
-    if guide_src.exists() and not (output_path / "health_guide.md").exists():
+    if guide_src.exists():
         shutil.copy2(guide_src, output_path / "health_guide.md")
-    if images_src.is_dir() and not (output_path / "health_guide_images").exists():
-        shutil.copytree(images_src, output_path / "health_guide_images")
+    if images_src.is_dir():
+        dst = output_path / "health_guide_images"
+        if dst.exists():
+            shutil.rmtree(dst)
+        shutil.copytree(images_src, dst)

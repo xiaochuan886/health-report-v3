@@ -56,6 +56,10 @@ def main(argv: list[str] | None = None) -> int:
             args.pdf_output,
             context["title"],
             context["hospital_name"],
+            patient_name=context.get("patient_name", ""),
+            report_date=context.get("report_date", ""),
+            institution_name=context.get("institution_name", ""),
+            cover_patient=f"{context.get('patient_name', '')}  {context.get('patient_gender', '')}  {context.get('patient_age', '')}岁",
         )
         return 0
 

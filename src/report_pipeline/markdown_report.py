@@ -100,9 +100,6 @@ def generate_markdown_report(context: dict) -> str:
     # 基础信息与质控校验表（合并）
     qc = context.get("quality_control", {})
     qc_rows = [
-        ["姓名", context["patient_name"]],
-        ["性别", context["patient_gender"]],
-        ["年龄", context["patient_age"]],
         ["采样日期", qc.get("sampling_date", "--")],
         ["收样日期", qc.get("receive_date", "--")],
         ["报告日期", qc.get("report_date", "--")],
@@ -351,7 +348,7 @@ def generate_markdown_report(context: dict) -> str:
 
     lines.extend(
         [
-            "# 医学名词释义",
+            "# 第五部分 医学名词释义",
             "",
             "### 医学名词释义",
             "",

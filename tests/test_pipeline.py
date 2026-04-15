@@ -34,6 +34,7 @@ def test_export_outputs_writes_expected_files(tmp_path: Path):
         cardio_interpretations=[],
         personal_info={},
         quality_control={},
+        report_config={},
         output_dir=tmp_path,
     )
 
@@ -260,7 +261,7 @@ def test_render_command_writes_markdown_and_calls_pdf_export(tmp_path: Path, mon
 
     calls = []
 
-    def fake_export(markdown_path, pdf_path, title, author):
+    def fake_export(markdown_path, pdf_path, title, author, **kwargs):
         calls.append((markdown_path, pdf_path, title, author))
         Path(pdf_path).write_text("pdf", encoding="utf-8")
 
@@ -282,5 +283,5 @@ def test_render_command_writes_markdown_and_calls_pdf_export(tmp_path: Path, mon
 
     assert exit_code == 0
     assert markdown_path.exists()
-    assert "# 综合健康检测报告" in markdown_path.read_text(encoding="utf-8")
+    assert "# 基础信息与质控校验表" in markdown_path.read_text(encoding="utf-8")
     assert calls[0][1] == str(pdf_path)
