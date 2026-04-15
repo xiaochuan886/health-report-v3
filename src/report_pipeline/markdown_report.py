@@ -83,12 +83,9 @@ _STAMP_MARKER = "STAMP_合格"
 
 
 def _badge_cell(context: dict, qc_key: str) -> str:
-    """Return badge image markdown if value is '合格', otherwise the value."""
+    """Return stamp marker if value is '合格', otherwise the value."""
     qc = context.get("quality_control", {})
     if qc.get(qc_key) == "合格":
-        badge_path = context.get("badge_image_path", "")
-        if badge_path:
-            return f"![]({badge_path})"
         return _STAMP_MARKER
     return qc.get(qc_key, "--")
 

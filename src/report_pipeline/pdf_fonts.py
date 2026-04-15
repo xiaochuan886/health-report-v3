@@ -1,17 +1,22 @@
 """
 pdf_fonts.py — Cross-platform font discovery and registration for ReportLab.
 
-Supports macOS, Windows, and Linux with CJK/Latin/Mono font families.
+CJK fonts (思源黑体 / Noto Sans CJK SC) are bundled in ``fonts/`` alongside
+this module.  Latin and Mono fonts fall back to system paths.
 """
 
 import os
 import sys
 import platform as _platform
+from pathlib import Path
 
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 _PLAT = _platform.system()  # "Darwin", "Linux", "Windows"
+
+# ── Bundled font directory ──────────────────────────────────────────────
+_BUNDLED_DIR = Path(__file__).parent / "fonts"
 
 
 def _find_font(candidates):
@@ -25,7 +30,8 @@ def _find_font(candidates):
 
 
 # Font candidates per role — ordered by preference, first match wins.
-# Each role lists candidates for macOS, Windows, Linux in one flat list.
+# CJK roles prefer bundled Noto Sans CJK SC (思源黑体).
+# Latin/Mono roles rely on system font paths.
 _FONT_CANDIDATES = {
     "Sans": [
         ("/System/Library/Fonts/Helvetica.ttc", 0),                               # macOS
@@ -81,23 +87,17 @@ _FONT_CANDIDATES = {
         "/usr/share/fonts/truetype/liberation/LiberationSerif-BoldItalic.ttf",
     ],
     "CJK": [
-        ("/System/Library/Fonts/STHeiti Light.ttc", 0),                           # macOS STHeiti
-        "C:/Windows/Fonts/msyh.ttc",                                             # Windows MSYH (微软雅黑)
-        ("/System/Library/Fonts/Supplemental/Songti.ttc", 0),                   # macOS Songti SC
-        "C:/Windows/Fonts/simsun.ttc",                                           # Windows SimSun (宋体)
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",               # Linux Noto Sans CJK
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",                  # macOS fallback
+        str(_BUNDLED_DIR / "NotoSansCJKsc-VF.ttf"),                            # Bundled 思源黑体 (variable TTF)
+        ("/System/Library/Fonts/STHeiti Light.ttc", 0),                           # macOS fallback
+        "C:/Windows/Fonts/msyh.ttc",                                             # Windows fallback
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",               # Linux fallback
+        "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
     ],
     "CJKBold": [
-        ("/System/Library/Fonts/STHeiti Medium.ttc", 0),                          # macOS STHeiti Medium
-        "C:/Windows/Fonts/msyhbd.ttc",                                           # Windows MSYH Bold
-        ("/System/Library/Fonts/Supplemental/Songti.ttc", 1),
-        "C:/Windows/Fonts/simsunb.ttf",
-        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
-        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
-        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+        str(_BUNDLED_DIR / "NotoSansCJKsc-VF.ttf"),                            # Bundled 思源黑体 (variable TTF)
+        ("/System/Library/Fonts/STHeiti Medium.ttc", 0),                          # macOS fallback
+        "C:/Windows/Fonts/msyhbd.ttc",                                           # Windows fallback
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",                  # Linux fallback
     ],
     "Mono": [
         ("/System/Library/Fonts/Menlo.ttc", 0),                                  # macOS

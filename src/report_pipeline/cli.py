@@ -41,14 +41,6 @@ def main(argv: list[str] | None = None) -> int:
         markdown_path = Path(args.markdown_output)
         markdown_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Copy badge image to output directory for markdown reference
-        badge_src = Path(__file__).parent / "badge_合格.png"
-        badge_dst = markdown_path.parent / "badge_合格.png"
-        import shutil
-        if badge_src.exists():
-            shutil.copy(badge_src, badge_dst)
-            context["badge_image_path"] = "badge_合格.png"
-
         markdown = generate_markdown_report(context)
         markdown_path.write_text(markdown, encoding="utf-8")
         export_pdf(

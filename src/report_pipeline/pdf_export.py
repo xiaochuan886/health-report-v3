@@ -173,25 +173,19 @@ def _create_stamp_overlay(page_width: float, page_height: float, positions: list
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
 
-    # Register CJK font for Chinese text in badge
-    cjk_candidates = [
-        ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", None),
-        ("/System/Library/Fonts/Supplemental/Songti.ttc", 0),
-        ("/System/Library/Fonts/PingFang.ttc", 0),
-        ("C:/Windows/Fonts/msyh.ttc", None),
-    ]
+    # Register CJK font for Chinese text in badge — reuse pdf_fonts registry
+    from report_pipeline.pdf_fonts import _find_font, _FONT_CANDIDATES, _BUNDLED_DIR
+    cjk_spec = _find_font(_FONT_CANDIDATES["CJK"])
     cjk_font_name = "Helvetica"  # fallback
-    for font_path, subfont_idx in cjk_candidates:
-        if Path(font_path).exists():
-            try:
-                if subfont_idx is not None:
-                    pdfmetrics.registerFont(TTFont("StampCJK", font_path, subfontIndex=subfont_idx))
-                else:
-                    pdfmetrics.registerFont(TTFont("StampCJK", font_path))
-                cjk_font_name = "StampCJK"
-                break
-            except Exception:
-                continue
+    if cjk_spec:
+        try:
+            if isinstance(cjk_spec, tuple):
+                pdfmetrics.registerFont(TTFont("StampCJK", cjk_spec[0], subfontIndex=cjk_spec[1]))
+            else:
+                pdfmetrics.registerFont(TTFont("StampCJK", cjk_spec))
+            cjk_font_name = "StampCJK"
+        except Exception:
+            pass
 
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=(page_width, page_height))
