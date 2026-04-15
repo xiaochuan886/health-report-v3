@@ -12,6 +12,7 @@ Provides:
 import re
 import os
 import io
+import tempfile
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -128,8 +129,8 @@ def _flatten_transparency(img_path: str):
     """Convert transparent PNG (or images with alpha/transparency) to white background
     for consistent PDF rendering. Handles RGBA, LA, PA, and P (with trans) modes.
 
-    Returns the original path if no conversion needed or PIL missing, or a BytesIO
-    with the flattened RGB image.
+    Returns the original path if no conversion needed or PIL missing, or a temp file
+    path with the flattened RGB image.
     """
     if not img_path or not os.path.exists(img_path):
         return img_path
@@ -144,14 +145,22 @@ def _flatten_transparency(img_path: str):
         if has_alpha or has_trans:
             # Convert to RGBA to normalize all transparency types
             rgba = img.convert('RGBA')
+
+            # Downsample oversized images — PDF only needs ~300 dpi at target size
+            max_px = 1500
+            if max(rgba.size) > max_px:
+                ratio = max_px / max(rgba.size)
+                new_size = (int(rgba.size[0] * ratio), int(rgba.size[1] * ratio))
+                rgba = rgba.resize(new_size, PILImage.LANCZOS)
+
             # Composite onto pure white background
-            bg = PILImage.new('RGB', img.size, (255, 255, 255))
+            bg = PILImage.new('RGB', rgba.size, (255, 255, 255))
             bg.paste(rgba, mask=rgba.split()[3])
 
-            buf = io.BytesIO()
-            bg.save(buf, format='PNG')
-            buf.seek(0)
-            return buf
+            fd, tmp_path = tempfile.mkstemp(suffix='.png', prefix='flat_')
+            os.close(fd)
+            bg.save(tmp_path, format='PNG', optimize=True)
+            return tmp_path
     except Exception:
         pass
     return img_path

@@ -136,10 +136,10 @@ class PDFBuilder:
                     logo = os.path.join(base_dir, logo)
 
                 img_src = _flatten_transparency(logo)
-                logo_w = 40*mm
-                c.drawImage(img_src, cx - logo_w/2, self.page_h - 40*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
-            except Exception:
-                pass
+                logo_w = 60*mm
+                c.drawImage(img_src, cx - logo_w/2, self.page_h - 50*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
+            except Exception as e:
+                print(f"Warning: Cover logo draw failed: {e}", file=sys.stderr)
 
         title_y = self.page_h * 0.62
         c.setFillColor(T["ink"])
@@ -421,8 +421,8 @@ class PDFBuilder:
                     img_src = _flatten_transparency(logo)
                     c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
                     title_lx = self.lm + 25*mm
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"Warning: Header logo draw failed: {e}", file=sys.stderr)
 
             header_title = self.cfg.get("header_title", "")
             if header_title:
@@ -472,20 +472,33 @@ class PDFBuilder:
         c.line(self.lm, self.page_h - 20*mm, self.page_w - self.rm, self.page_h - 20*mm)
         c.setFillColor(T["ink_faded"])
 
-        # Header left: report title
-        header_title = self.cfg.get("header_title", "")
-        if header_title:
-            _draw_mixed(c, self.lm, self.page_h - 18*mm, header_title, 8)
-
-        # Header right: "目  录"
-        c.setFont("CJK", 8)
-        c.drawRightString(self.page_w - self.rm, self.page_h - 18*mm, "\u76ee  \u5f55")
+        # Header left: logo
+        logo = self.cfg.get("logo", "")
+        if logo and os.path.exists(logo):
+            try:
+                base_dir = self.cfg.get("base_dir", "")
+                if base_dir and not os.path.isabs(logo):
+                    logo = os.path.join(base_dir, logo)
+                img_src = _flatten_transparency(logo)
+                c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
+            except Exception as e:
+                print(f"Warning: TOC header logo draw failed: {e}", file=sys.stderr)
 
         # Footer
         c.setStrokeColor(T["border"])
         c.line(self.lm, self.bm - 8*mm, self.page_w - self.rm, self.bm - 8*mm)
         c.setFillColor(T["accent"]); c.setFont("Serif", 9)
         c.drawCentredString(self.page_w/2, self.bm - 16*mm, f"\u2014  {pg}  \u2014")
+
+        # Footer left: report title
+        footer_left = self.cfg.get("footer_left", "")
+        if footer_left:
+            c.setFillColor(T["ink_faded"])
+            _draw_mixed(c, self.lm, self.bm - 16*mm, footer_left, 8)
+
+        # Header right: "目  录"
+        c.setFont("CJK", 8)
+        c.drawRightString(self.page_w - self.rm, self.page_h - 18*mm, "\u76ee  \u5f55")
 
         c.restoreState()
 
