@@ -11,12 +11,20 @@ output/
 *.pdf
 *.xls
 *.xlsx
+
+# Allow standard rule database files and repository data/demo templates
+!src/report_pipeline/data/standard.xlsx
+!standard.xlsx
+!docs/演示文档/**
+docs/演示文档/**/.DS_Store
+
 .venv/
 
 # Build artifacts (PyInstaller)
 build/
 dist/
 *.spec
+!packaging/pyinstaller/*.spec
 
 # Packaging artifacts
 packaging/build/
