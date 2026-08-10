@@ -63,6 +63,27 @@ def _extract_target_pids(ps_output: str, *, app_signatures: tuple[str, ...], cur
 
 
 def _discover_peer_pids(app_signatures: tuple[str, ...], current_pid: int) -> list[int]:
+    if sys.platform == "win32":
+        # Windows：用 wmic 获取进程命令行（比 tasklist 信息更全）
+        result = subprocess.run(
+            ["wmic", "process", "get", "processid,commandline", "/format:csv"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+        # wmic CSV 输出：Node,CommandLine,ProcessId
+        lines: list[str] = []
+        for raw_line in result.stdout.splitlines():
+            parts = raw_line.strip().split(",")
+            if len(parts) >= 3:
+                command = ",".join(parts[1:-1])
+                pid_text = parts[-1]
+                lines.append(f"{pid_text} {command}")
+        return _extract_target_pids("\n".join(lines), app_signatures=app_signatures, current_pid=current_pid)
+
+    # macOS / Linux：用 ps 获取进程列表
     result = subprocess.run(
         ["ps", "-axo", "pid=,command="],
         capture_output=True,
@@ -79,6 +100,19 @@ def _terminate_pids(pids: list[int], grace_seconds: float = 1.2) -> int:
     if not unique:
         return 0
 
+    # Windows 没有 SIGTERM/SIGKILL，用 taskkill 终止进程树
+    is_windows = sys.platform == "win32"
+
+    if is_windows:
+        for pid in unique:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                capture_output=True,
+                check=False,
+            )
+        return len(unique)
+
+    # macOS / Linux：先 SIGTERM，超时后 SIGKILL
     for pid in unique:
         try:
             os.kill(pid, signal.SIGTERM)
@@ -195,8 +229,10 @@ class _StatusBarController:
 
 
 def run_statusbar_app(argv: list[str] | None = None) -> bool:
-    if sys.platform != "darwin":
-        return False
+    """启动系统托盘应用。支持 macOS 和 Windows（pystray 跨平台）。
+
+    返回 True 表示已启动托盘，返回 False 表示降级为纯 Web 服务。
+    """
     args_in = argv or []
     if "--no-statusbar" in args_in:
         return False

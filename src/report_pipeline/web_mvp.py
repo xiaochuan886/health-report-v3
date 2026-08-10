@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import socket
+import sys
 import threading
 import time
 import uuid
@@ -795,9 +796,17 @@ def serve(
     open_browser: bool = False,
 ) -> None:
     final_root = Path(root_dir) if root_dir is not None else _default_root_dir()
-    service = ReportJobService(root_dir=final_root)
+    try:
+        service = ReportJobService(root_dir=final_root)
+    except Exception as exc:
+        print(f"[错误] 无法初始化服务，请检查输出目录是否可写: {final_root}\n  {exc}", file=sys.stderr)
+        raise
     actual_port = _resolve_port(host, port)
-    server = ThreadingHTTPServer((host, actual_port), _make_handler(service))
+    try:
+        server = ThreadingHTTPServer((host, actual_port), _make_handler(service))
+    except OSError as exc:
+        print(f"[错误] 无法绑定 {host}:{actual_port}: {exc}", file=sys.stderr)
+        raise
     url = f"http://{host}:{actual_port}"
     print(f"web mvp server running: {url}")
     print(f"output root: {final_root}")

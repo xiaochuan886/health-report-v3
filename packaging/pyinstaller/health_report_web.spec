@@ -19,6 +19,8 @@ hiddenimports += collect_submodules("pypdf")
 hiddenimports += [
     "pystray",
     "pystray._util",
+    "pystray.Win32",       # Windows 托盘后端
+    "pystray.Darwin",      # macOS 托盘后端（同一 spec 兼容）
     "PIL._tkinter_finder",
 ]
 
