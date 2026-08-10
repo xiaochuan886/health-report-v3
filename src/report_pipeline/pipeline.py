@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import shutil
 from pathlib import Path
 from typing import Any
@@ -61,16 +62,28 @@ def _load_personal_basic_info(xlsx_path: str) -> dict[str, Any]:
 
         # 计算 BMI = 体重(kg) / 身高(m)^2
         if "身高" in result and "体重" in result:
-            height_m = result["身高"] / 100
-            if height_m > 0:
-                result["BMI"] = round(result["体重"] / (height_m ** 2), 2)
+            height_val = result["身高"]
+            weight_val = result["体重"]
+            if isinstance(height_val, (int, float)) and isinstance(weight_val, (int, float)):
+                height_m = height_val / 100
+                if height_m > 0:
+                    result["BMI"] = round(weight_val / (height_m ** 2), 2)
 
         # 计算 腰高比 = 腹围 / 身高
-        if "身高" in result and "腹围" in result and result["身高"] > 0:
-            result["腰高比"] = round(result["腹围"] / result["身高"], 2)
+        if "身高" in result and "腹围" in result:
+            height_val = result["身高"]
+            waist_val = result["腹围"]
+            if (
+                isinstance(height_val, (int, float))
+                and isinstance(waist_val, (int, float))
+                and height_val > 0
+            ):
+                result["腰高比"] = round(waist_val / height_val, 2)
 
         return result
-    except Exception:
+    except (KeyError, ValueError, TypeError, OSError) as exc:
+        # 记录而非静默吞没，避免单个坏单元格导致整份个人信息丢失且不可见
+        logging.exception("读取客户基本信息失败 %s: %s", xlsx_path, exc)
         return {}
 
 

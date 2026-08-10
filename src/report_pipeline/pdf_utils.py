@@ -11,8 +11,7 @@ Provides:
 
 import re
 import os
-import io
-import tempfile
+import sys
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -129,8 +128,10 @@ def _flatten_transparency(img_path: str):
     """Convert transparent PNG (or images with alpha/transparency) to white background
     for consistent PDF rendering. Handles RGBA, LA, PA, and P (with trans) modes.
 
-    Returns the original path if no conversion needed or PIL missing, or a temp file
-    path with the flattened RGB image.
+    Returns a PIL Image (RGB) when conversion is needed, or the original path when
+    no conversion is needed / PIL is missing. Both are accepted by ReportLab's
+    drawImage / RLImage / ImageReader. Uses in-memory image instead of temp files
+    to avoid /tmp leaks on repeated builds.
     """
     if not img_path or not os.path.exists(img_path):
         return img_path
@@ -156,13 +157,9 @@ def _flatten_transparency(img_path: str):
             # Composite onto pure white background
             bg = PILImage.new('RGB', rgba.size, (255, 255, 255))
             bg.paste(rgba, mask=rgba.split()[3])
-
-            fd, tmp_path = tempfile.mkstemp(suffix='.png', prefix='flat_')
-            os.close(fd)
-            bg.save(tmp_path, format='PNG', optimize=True)
-            return tmp_path
-    except Exception:
-        pass
+            return bg  # 返回内存中的 PIL Image，避免临时文件泄漏
+    except Exception as e:
+        print(f"Warning: flatten transparency failed for {img_path}: {e}", file=sys.stderr)
     return img_path
 
 

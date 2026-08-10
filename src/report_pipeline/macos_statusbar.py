@@ -15,15 +15,33 @@ from pathlib import Path
 from report_pipeline.web_mvp import ReportJobService, _default_root_dir, _make_handler, _resolve_port
 
 
-def _looks_like_health_report_process(command: str, executable_name: str) -> bool:
-    if "HealthReportWeb.app/Contents/MacOS/HealthReportWeb" in command:
-        return True
-    if f"/{executable_name} " in command:
-        return True
-    return command.endswith(f"/{executable_name}")
+def _looks_like_health_report_process(command: str, app_signatures: tuple[str, ...]) -> bool:
+    """判断 ps 命令行是否属于本应用进程。
+
+    只匹配本应用的可识别签名（.app bundle 路径或本脚本路径），
+    不再基于泛化的解释器名（如 "python"）匹配，避免误杀用户其它 Python 进程。
+    """
+    for sig in app_signatures:
+        if sig and sig in command:
+            return True
+    return False
 
 
-def _extract_target_pids(ps_output: str, *, executable_name: str, current_pid: int) -> list[int]:
+def _app_signatures() -> tuple[str, ...]:
+    """收集本应用的可识别命令行签名，用于 ps 进程匹配。"""
+    sigs: list[str] = []
+    # 1) 打包后的 .app bundle 主程序
+    sigs.append("HealthReportWeb.app/Contents/MacOS/HealthReportWeb")
+    # 2) 当前运行的脚本入口（app_web_mvp.py / run_web_mvp.py 等），用绝对路径片段
+    main_script = getattr(sys.modules.get("__main__"), "__file__", None) or (sys.argv[0] if sys.argv else None)
+    if main_script:
+        main_name = os.path.basename(main_script)
+        if main_name in {"app_web_mvp.py", "run_web_mvp.py"}:
+            sigs.append(main_name)
+    return tuple(s for s in sigs if s)
+
+
+def _extract_target_pids(ps_output: str, *, app_signatures: tuple[str, ...], current_pid: int) -> list[int]:
     pids: list[int] = []
     for raw_line in ps_output.splitlines():
         line = raw_line.strip()
@@ -39,12 +57,12 @@ def _extract_target_pids(ps_output: str, *, executable_name: str, current_pid: i
             continue
         if pid == current_pid:
             continue
-        if _looks_like_health_report_process(command, executable_name):
+        if _looks_like_health_report_process(command, app_signatures):
             pids.append(pid)
     return pids
 
 
-def _discover_peer_pids(executable_name: str, current_pid: int) -> list[int]:
+def _discover_peer_pids(app_signatures: tuple[str, ...], current_pid: int) -> list[int]:
     result = subprocess.run(
         ["ps", "-axo", "pid=,command="],
         capture_output=True,
@@ -53,7 +71,7 @@ def _discover_peer_pids(executable_name: str, current_pid: int) -> list[int]:
     )
     if result.returncode != 0:
         return []
-    return _extract_target_pids(result.stdout, executable_name=executable_name, current_pid=current_pid)
+    return _extract_target_pids(result.stdout, app_signatures=app_signatures, current_pid=current_pid)
 
 
 def _terminate_pids(pids: list[int], grace_seconds: float = 1.2) -> int:
@@ -78,6 +96,11 @@ def _terminate_pids(pids: list[int], grace_seconds: float = 1.2) -> int:
         time.sleep(0.05)
 
     for pid in list(remaining):
+        # 二次确认进程仍存活，避免 PID 被复用后误杀新进程
+        try:
+            os.kill(pid, 0)
+        except OSError:
+            continue
         try:
             os.kill(pid, signal.SIGKILL)
         except OSError:
@@ -126,14 +149,14 @@ class _ServerRuntime:
 class _StatusBarController:
     def __init__(self, host: str, port: int, root_dir: Path) -> None:
         self._server_runtime = _ServerRuntime(host=host, requested_port=port, root_dir=root_dir)
-        self._executable_name = Path(sys.executable).name
+        self._app_signatures = _app_signatures()
         self._icon = None
 
     def _open_window(self) -> None:
         webbrowser.open(self._server_runtime.url)
 
     def _close_all_processes(self) -> int:
-        pids = _discover_peer_pids(self._executable_name, os.getpid())
+        pids = _discover_peer_pids(self._app_signatures, os.getpid())
         return _terminate_pids(pids)
 
     def run(self) -> None:

@@ -80,7 +80,9 @@ def build_render_context(bundle: dict[str, Any]) -> dict[str, Any]:
             if key[0] and key not in seen_cardio:
                 seen_cardio.add(key)
                 cardio_all_rows.append(row)
-    cardio_all_rows.sort(key=lambda r: r.get("display_order") or 999)
+    cardio_all_rows.sort(
+        key=lambda r: r.get("display_order") if r.get("display_order") is not None else 999
+    )
 
     glossary_map: dict[str, dict[str, str]] = {}
     glossary_source_rows = list(cancer_all_rows)

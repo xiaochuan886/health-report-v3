@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import argparse
-import cgi
 import json
 import socket
 import threading
 import time
 import uuid
 import webbrowser
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -22,6 +21,81 @@ from report_pipeline.render_inputs import build_render_context, load_render_bund
 
 
 StatusFn = Callable[..., Any]
+
+
+# ─── multipart/form-data 解析（替代 Python 3.13 已移除的 cgi 模块）───
+
+
+@dataclass
+class _UploadedFile:
+    filename: str
+    data: bytes
+
+
+@dataclass
+class _MultipartForm:
+    fields: dict[str, str] = field(default_factory=dict)
+    files: dict[str, _UploadedFile] = field(default_factory=dict)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.fields or key in self.files
+
+    def __getitem__(self, key: str) -> _UploadedFile:
+        return self.files[key]
+
+
+def _parse_multipart(body: bytes, content_type: str) -> _MultipartForm:
+    """解析 multipart/form-data，提取字段与上传文件。"""
+    form = _MultipartForm()
+
+    # 提取 boundary
+    boundary = None
+    for part in content_type.split(";"):
+        part = part.strip()
+        if part.startswith("boundary="):
+            boundary = part[len("boundary="):].strip().strip('"')
+            break
+    if not boundary:
+        return form
+
+    delimiter = b"--" + boundary.encode()
+    form_raw = b"\r\n" + body  # 确保首段也能被 \r\n--boundary 定位
+
+    for segment in form_raw.split(delimiter):
+        segment = segment.strip(b"\r\n")
+        if not segment or segment == b"--":  # 空段或结束标记
+            continue
+        # 分离 headers 与 body
+        header_blob, _, value = segment.partition(b"\r\n\r\n")
+        if not _:
+            continue  # 无 body 分隔
+
+        # 解析 Content-Disposition
+        name = None
+        filename = None
+        for hline in header_blob.split(b"\r\n"):
+            hline_str = hline.decode("utf-8", errors="replace")
+            if hline_str.lower().startswith("content-disposition:"):
+                # 简单解析 name="..." 和 filename="..."
+                import re
+
+                name_m = re.search(r'name="([^"]*)"', hline_str)
+                filename_m = re.search(r'filename="([^"]*)"', hline_str)
+                if name_m:
+                    name = name_m.group(1)
+                if filename_m:
+                    filename = filename_m.group(1)
+                break
+
+        if name is None:
+            continue
+
+        if filename is not None:
+            form.files[name] = _UploadedFile(filename=filename, data=value)
+        else:
+            form.fields[name] = value.decode("utf-8", errors="replace")
+
+    return form
 
 
 @dataclass
@@ -655,35 +729,30 @@ def _make_handler(service: ReportJobService):
                     self._reply_json(HTTPStatus.BAD_REQUEST, {"error": "multipart/form-data required"})
                     return
 
-                form = cgi.FieldStorage(
-                    fp=self.rfile,
-                    headers=self.headers,
-                    environ={
-                        "REQUEST_METHOD": "POST",
-                        "CONTENT_TYPE": ctype,
-                    },
-                )
-
+                # 读取完整 body（cgi 模块在 3.13+ 已移除，改用自实现解析器）
                 try:
-                    lab = form["lab_xls"]
-                except KeyError:
+                    length = int(self.headers.get("Content-Length", 0))
+                except (TypeError, ValueError):
+                    length = 0
+                body = self.rfile.read(length) if length > 0 else b""
+
+                form = _parse_multipart(body, ctype)
+
+                if "lab_xls" not in form:
                     self._reply_json(HTTPStatus.BAD_REQUEST, {"error": "lab_xls is required"})
                     return
 
-                if not getattr(lab, "file", None):
-                    self._reply_json(HTTPStatus.BAD_REQUEST, {"error": "invalid upload files"})
-                    return
-
-                personal_field = form["personal_info_xlsx"] if "personal_info_xlsx" in form else None
+                lab = form["lab_xls"]
                 personal_name = None
                 personal_bytes = None
-                if personal_field is not None and getattr(personal_field, "file", None):
-                    personal_name = personal_field.filename or "personal_info.xlsx"
-                    personal_bytes = personal_field.file.read()
+                if "personal_info_xlsx" in form:
+                    pf = form["personal_info_xlsx"]
+                    personal_name = pf.filename or "personal_info.xlsx"
+                    personal_bytes = pf.data
 
                 job_id = service.create_job(
                     lab_filename=lab.filename or "lab.xls",
-                    lab_bytes=lab.file.read(),
+                    lab_bytes=lab.data,
                     personal_info_filename=personal_name,
                     personal_info_bytes=personal_bytes,
                 )

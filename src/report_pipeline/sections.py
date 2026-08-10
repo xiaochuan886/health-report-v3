@@ -142,7 +142,10 @@ def build_cancer_interpretations(enriched: pd.DataFrame, cancer_explanations: li
 
     result = []
     for disease, rows in disease_groups.items():
-        ordered = sorted(rows, key=lambda r: r.get("display_order") or 999)
+        ordered = sorted(
+            rows,
+            key=lambda r: r.get("display_order") if r.get("display_order") is not None else 999,
+        )
         exp = explanations_map.get(disease, {})
 
         by_type: dict[str, list[str]] = {}

@@ -35,3 +35,4 @@ packaging/build/
 
 # Font binary instances (source-bundled fonts)
 src/report_pipeline/fonts/instances/
+.zcode/

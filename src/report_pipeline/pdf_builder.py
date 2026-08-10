@@ -989,6 +989,11 @@ class PDFBuilder:
         if has_toc:
             # First pass: parse and build to collect page numbers
             print("Parsing markdown (pass 1)...")
+            # 重置全局 anchor 计数器，确保 pass 1 和 pass 2 的 anchor key 一致
+            # （修复同一进程多次构建时 TOC 页码全部丢失的 bug）
+            _anchor_counter[0] = 0
+            _outline_level[0] = -1
+            _cur_chapter[0] = ""
             story_content_1, toc = self.parse_md(md_text)
             print(f"  {len(story_content_1)} elements, {len(toc)} TOC entries")
             if not toc:
@@ -1001,8 +1006,12 @@ class PDFBuilder:
                 tmp_path = tmp.name
 
             print("Pass 1: collecting page numbers...")
-            page_map = self._build_pass(tmp_path, story_content_1, toc)
-            os.unlink(tmp_path)
+            try:
+                page_map = self._build_pass(tmp_path, story_content_1, toc)
+            finally:
+                # 确保 _build_pass 异常时临时 PDF 也被清理
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
 
             # Second pass: re-parse to get fresh flowables, then build with real page numbers
             print(f"Parsing markdown (pass 2, {len(page_map)} page refs)...")

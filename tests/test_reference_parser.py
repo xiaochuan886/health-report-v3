@@ -60,3 +60,79 @@ def test_evaluate_multirule_negative_label_as_normal():
     parsed = parse_reference("阴性:<0.05")
     risk = evaluate_risk(0.02, parsed)
     assert risk["risk_status"] == "normal"
+
+
+# ─── 血脂分级参考值（胆固醇 / 甘油三酯 / HDL-C）───
+# 修复前：单行分号分隔、无冒号标签、复合"且"条件均解析失败 → 漏报异常
+
+
+def test_parse_total_cholesterol_semicolon_multirule():
+    """总胆固醇：单行分号分隔、无冒号标签。"""
+    parsed = parse_reference("合适水平<5.18；边缘升高5.18-6.19；升高≥6.20")
+    assert parsed["kind"] == "multi_rule"
+    assert parsed["labels"] == ["合适水平", "边缘升高", "升高"]
+
+
+def test_parse_total_cholesterol_compound_bound():
+    """总胆固醇：含"且"复合条件。"""
+    parsed = parse_reference("合适水平<5.20；边缘升高≥5.20且<6.20；升高≥6.20")
+    assert parsed["kind"] == "multi_rule"
+    assert parsed["labels"] == ["合适水平", "边缘升高", "升高"]
+
+
+def test_evaluate_cholesterol_elevated_is_abnormal():
+    parsed = parse_reference("合适水平<5.18；边缘升高5.18-6.19；升高≥6.20")
+    risk = evaluate_risk(6.50, parsed)
+    assert risk["risk_status"] == "升高"
+    assert risk["is_abnormal"] is True
+
+
+def test_evaluate_cholesterol_borderline_is_abnormal():
+    parsed = parse_reference("合适水平<5.18；边缘升高5.18-6.19；升高≥6.20")
+    risk = evaluate_risk(5.80, parsed)
+    assert risk["risk_status"] == "边缘升高"
+    assert risk["is_abnormal"] is True
+
+
+def test_evaluate_cholesterol_optimal_is_normal():
+    parsed = parse_reference("合适水平<5.18；边缘升高5.18-6.19；升高≥6.20")
+    risk = evaluate_risk(4.00, parsed)
+    assert risk["risk_status"] == "normal"
+    assert risk["is_abnormal"] is False
+
+
+def test_evaluate_triglycerides_elevated_is_abnormal():
+    parsed = parse_reference("合适水平<1.70；边缘升高1.70-2.25；升高≥2.26")
+    risk = evaluate_risk(2.50, parsed)
+    assert risk["risk_status"] == "升高"
+    assert risk["is_abnormal"] is True
+
+
+def test_evaluate_triglycerides_compound_bound_elevated():
+    """甘油三酯：复合"且"条件的边缘区间。"""
+    parsed = parse_reference("合适水平<1.70；边缘升高≥1.70且<2.25；升高≥2.25")
+    risk = evaluate_risk(1.90, parsed)
+    assert risk["risk_status"] == "边缘升高"
+    assert risk["is_abnormal"] is True
+
+
+def test_evaluate_hdl_low_is_abnormal():
+    """HDL-C：下限型分级（合适水平>1.04；降低≤1.04）。"""
+    parsed = parse_reference("合适水平>1.04；降低≤1.04")
+    risk = evaluate_risk(0.90, parsed)
+    assert risk["risk_status"] == "降低"
+    assert risk["is_abnormal"] is True
+
+
+def test_evaluate_hdl_optimal_is_normal():
+    parsed = parse_reference("合适水平>1.04；降低≤1.04")
+    risk = evaluate_risk(1.50, parsed)
+    assert risk["risk_status"] == "normal"
+    assert risk["is_abnormal"] is False
+
+
+def test_evaluate_strict_less_than_boundary():
+    """严格不等号："<5.18" 的边界值 5.18 本身不应判为合适水平。"""
+    parsed = parse_reference("合适水平<5.18；边缘升高5.18-6.19；升高≥6.20")
+    risk = evaluate_risk(5.18, parsed)
+    assert risk["risk_status"] == "边缘升高"
