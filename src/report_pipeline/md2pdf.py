@@ -70,7 +70,7 @@ from report_pipeline.pdf_builder import PDFBuilder                              
 # ═══════════════════════════════════════════════════════════════════════
 # CLI
 # ═══════════════════════════════════════════════════════════════════════
-def main():
+def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="md2pdf — Markdown to Professional PDF")
     parser.add_argument("--input", "-i", required=True, help="Input markdown file")
     parser.add_argument("--output", "-o", default="output.pdf", help="Output PDF path")
@@ -101,7 +101,7 @@ def main():
     parser.add_argument("--logo", default="", help="Path to company logo")
     parser.add_argument("--first-h1-inline", default=False, type=lambda x: x.lower() == 'true', help="Render first H1 inline without divider page")
     parser.add_argument("--h2-top-ratio", default=0.05, type=float, help="Top spacer ratio for H2 headings (0.0-1.0)")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     with open(args.input, encoding='utf-8') as f:
         md_text = f.read()

@@ -49,3 +49,25 @@ def test_build_render_context_extracts_patient_and_glossary():
     assert context["patient_gender"] == "男"
     assert context["glossary_rows"][0]["indicator_short_name"] == "CEA"
     assert context["cancer_summary_rows"][0]["indicator_short_name"] == "CEA"
+
+
+def test_build_render_context_strips_trailing_parenthesized_suffix_in_patient_name():
+    bundle = {
+        "matched_rows": [
+            {
+                "病人姓名": "汪斯凡（202X）",
+                "病人性别": "女",
+                "病人年龄": 43,
+                "match_status": "unmatched",
+            }
+        ],
+        "summary_sections": {"癌症健康监测小结": [], "心脑血管健康监测小结": []},
+        "nutrition_sections": {"微量元素检测结果": [], "维生素检测结果": []},
+    }
+
+    context = build_render_context(bundle)
+    assert context["patient_name"] == "汪斯凡"
+
+    bundle["matched_rows"][0]["病人姓名"] = "汪斯凡(202X)"
+    context = build_render_context(bundle)
+    assert context["patient_name"] == "汪斯凡"

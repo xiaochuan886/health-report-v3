@@ -35,34 +35,34 @@ def _is_cjk(ch):
     return False
 
 
-def _font_wrap(text):
-    """Wrap CJK runs in <font name='CJK'> tags for ReportLab Paragraph."""
+def _font_wrap(text, cjk_font="CJK"):
+    """Wrap CJK runs in <font name='...'> tags for ReportLab Paragraph."""
     out, buf, in_cjk = [], [], False
     for ch in text:
         c = _is_cjk(ch)
         if c != in_cjk and buf:
             seg = ''.join(buf)
-            out.append(f"<font name='CJK'>{seg}</font>" if in_cjk else seg)
+            out.append(f"<font name='{cjk_font}'>{seg}</font>" if in_cjk else seg)
             buf = []
         buf.append(ch); in_cjk = c
     if buf:
         seg = ''.join(buf)
-        out.append(f"<font name='CJK'>{seg}</font>" if in_cjk else seg)
+        out.append(f"<font name='{cjk_font}'>{seg}</font>" if in_cjk else seg)
     return ''.join(out)
 
 
-def _draw_mixed(c, x, y, text, size, anchor="left", max_w=0):
+def _draw_mixed(c, x, y, text, size, anchor="left", max_w=0, cjk_font="CJK", latin_font="Sans"):
     """Draw mixed CJK/Latin text on canvas with font switching.
     If max_w > 0, wrap into multiple lines. Returns bottom y of drawn text."""
     if max_w > 0:
-        return _draw_mixed_wrap(c, x, y, text, size, anchor, max_w)
+        return _draw_mixed_wrap(c, x, y, text, size, anchor, max_w, cjk_font=cjk_font, latin_font=latin_font)
     segs, buf, in_cjk = [], [], False
     for ch in text:
         cj = _is_cjk(ch)
         if cj != in_cjk and buf:
-            segs.append(("CJK" if in_cjk else "Sans", ''.join(buf))); buf = []
+            segs.append((cjk_font if in_cjk else latin_font, ''.join(buf))); buf = []
         buf.append(ch); in_cjk = cj
-    if buf: segs.append(("CJK" if in_cjk else "Sans", ''.join(buf)))
+    if buf: segs.append((cjk_font if in_cjk else latin_font, ''.join(buf)))
     total_w = sum(c.stringWidth(t, f, size) for f, t in segs)
     if anchor == "right": x -= total_w
     elif anchor == "center": x -= total_w / 2
@@ -71,25 +71,25 @@ def _draw_mixed(c, x, y, text, size, anchor="left", max_w=0):
         x += c.stringWidth(txt, font, size)
 
 
-def _measure_mixed(c, text, size):
+def _measure_mixed(c, text, size, cjk_font="CJK", latin_font="Sans"):
     """Measure width of mixed CJK/Latin text."""
     w = 0
     buf, in_cjk = [], False
     for ch in text:
         cj = _is_cjk(ch)
         if cj != in_cjk and buf:
-            w += c.stringWidth(''.join(buf), "CJK" if in_cjk else "Sans", size); buf = []
+            w += c.stringWidth(''.join(buf), cjk_font if in_cjk else latin_font, size); buf = []
         buf.append(ch); in_cjk = cj
-    if buf: w += c.stringWidth(''.join(buf), "CJK" if in_cjk else "Sans", size)
+    if buf: w += c.stringWidth(''.join(buf), cjk_font if in_cjk else latin_font, size)
     return w
 
 
-def _draw_mixed_wrap(c, x, y, text, size, anchor, max_w):
+def _draw_mixed_wrap(c, x, y, text, size, anchor, max_w, cjk_font="CJK", latin_font="Sans"):
     """Word-wrap mixed text into multiple lines, shrink font if single word overflows."""
     words = text.split(' ')
     # Shrink font until longest word fits (floor 16pt)
     while size > 16:
-        longest = max(_measure_mixed(c, w, size) for w in words)
+        longest = max(_measure_mixed(c, w, size, cjk_font=cjk_font, latin_font=latin_font) for w in words)
         if longest <= max_w: break
         size -= 1
     # Greedy line breaking
@@ -97,7 +97,7 @@ def _draw_mixed_wrap(c, x, y, text, size, anchor, max_w):
     cur_w = 0
     space_w = c.stringWidth(' ', 'Sans', size)
     for word in words:
-        ww = _measure_mixed(c, word, size)
+        ww = _measure_mixed(c, word, size, cjk_font=cjk_font, latin_font=latin_font)
         test_w = cur_w + (space_w if cur else 0) + ww
         if cur and test_w > max_w:
             lines.append(' '.join(cur)); cur = [word]; cur_w = ww
@@ -107,7 +107,7 @@ def _draw_mixed_wrap(c, x, y, text, size, anchor, max_w):
     # Draw lines downward from y (top line at y)
     line_h = size * 1.3
     for i, line in enumerate(lines):
-        _draw_mixed(c, x, y - i * line_h, line, size, anchor)
+        _draw_mixed(c, x, y - i * line_h, line, size, anchor, cjk_font=cjk_font, latin_font=latin_font)
     return y - (len(lines) - 1) * line_h
 
 
@@ -188,7 +188,7 @@ def esc_code(text):
     return '<br/>'.join(out)
 
 
-def md_inline(text, accent_hex="#CC785C"):
+def md_inline(text, accent_hex="#CC785C", cjk_font="CJK"):
     """Convert inline Markdown syntax to ReportLab XML markup."""
     text = esc(text)
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
@@ -205,4 +205,4 @@ def md_inline(text, accent_hex="#CC785C"):
     text = text.replace("[TITLE]", "<font size='14'><b>")
     text = text.replace("[/TITLE]", "</b></font>")
 
-    return _font_wrap(text)
+    return _font_wrap(text, cjk_font=cjk_font)

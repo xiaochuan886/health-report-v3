@@ -25,6 +25,7 @@ from reportlab.platypus import (
     KeepTogether
 )
 from reportlab.lib.utils import ImageReader
+from reportlab.pdfbase import pdfmetrics
 
 from report_pipeline.pdf_fonts import register_fonts
 from report_pipeline.pdf_utils import (
@@ -52,7 +53,50 @@ class PDFBuilder:
         self.body_w = self.page_w - self.lm - self.rm
         self.body_h = self.page_h - self.tm - self.bm
         self.accent_hex = config.get("accent_hex", "#CC785C")
+        self._current_part_title = ""
+        self._current_body_cjk_font = "CJK"
         self.ST = self._build_styles()
+
+    @staticmethod
+    def _norm_weight(weight, fallback=400):
+        try:
+            w = int(weight)
+            if w < 100:
+                return 100
+            if w > 900:
+                return 900
+            return (w // 100) * 100
+        except Exception:
+            return fallback
+
+    def _cjk_font_by_weight(self, weight, fallback="CJK"):
+        w = self._norm_weight(weight, 400)
+        alias = f"CJK{w}"
+        return alias if alias in pdfmetrics.getRegisteredFontNames() else fallback
+
+    def _style_cjk_font(self, style_key):
+        L = self.L
+        mapping = {
+            "part": L.get("part_cjk_weight", 700),
+            "chapter": L.get("chapter_cjk_weight", 700),
+            "h3": L.get("h3_cjk_weight", 600),
+            "body": L.get("body_cjk_weight", 400),
+            "bullet": L.get("bullet_cjk_weight", L.get("body_cjk_weight", 400)),
+            "body_indent": L.get("body_indent_cjk_weight", L.get("body_cjk_weight", 400)),
+            "table_th": L.get("table_header_cjk_weight", 700),
+            "table_tc": L.get("table_cell_cjk_weight", L.get("body_cjk_weight", 400)),
+        }
+        return self._cjk_font_by_weight(mapping.get(style_key, 400))
+
+    def _section_body_cjk_font(self, part_title):
+        overrides = self.L.get("section_body_cjk_weight_overrides", {}) or {}
+        for key, weight in overrides.items():
+            if part_title == key or (key and key in part_title):
+                return self._cjk_font_by_weight(weight, fallback=self._style_cjk_font("body"))
+        return self._style_cjk_font("body")
+
+    def _cover_title_cjk_font(self):
+        return self._cjk_font_by_weight(800, fallback="CJK")
 
     # ── Style sheet ─────────────────────────────────────────────────────────
     def _build_styles(self):
@@ -143,7 +187,11 @@ class PDFBuilder:
 
         title_y = self.page_h * 0.62
         c.setFillColor(T["ink"])
-        btm = _draw_mixed(c, cx, title_y, self.cfg.get("title", "Document"), 38, anchor="center", max_w=self.page_w - 40*mm)
+        btm = _draw_mixed(
+            c, cx, title_y, self.cfg.get("title", "Document"), 38,
+            anchor="center", max_w=self.page_w - 40*mm,
+            cjk_font=self._cover_title_cjk_font(), latin_font="SansBold"
+        )
 
         ver = self.cfg.get("version", "")
         if ver:
@@ -198,7 +246,11 @@ class PDFBuilder:
         lx = 25*mm  # left text x
         title_y = self.page_h * 0.58
         c.setFillColor(T["ink"])
-        btm = _draw_mixed(c, lx, title_y, self.cfg.get("title", "Document"), 34, anchor="left", max_w=self.page_w - lx - 20*mm)
+        btm = _draw_mixed(
+            c, lx, title_y, self.cfg.get("title", "Document"), 34,
+            anchor="left", max_w=self.page_w - lx - 20*mm,
+            cjk_font=self._cover_title_cjk_font(), latin_font="SansBold"
+        )
 
         ver = self.cfg.get("version", "")
         if ver:
@@ -238,7 +290,11 @@ class PDFBuilder:
         """Minimal cover (Tufte/ink-wash style) — lots of whitespace, no bars."""
         title_y = self.page_h * 0.50
         c.setFillColor(T["ink"])
-        btm = _draw_mixed(c, cx, title_y, self.cfg.get("title", "Document"), 32, anchor="center", max_w=self.page_w - 50*mm)
+        btm = _draw_mixed(
+            c, cx, title_y, self.cfg.get("title", "Document"), 32,
+            anchor="center", max_w=self.page_w - 50*mm,
+            cjk_font=self._cover_title_cjk_font(), latin_font="SansBold"
+        )
 
         sub = self.cfg.get("subtitle", "")
         sub_segs = self.cfg.get("subtitle_segs")
@@ -575,7 +631,8 @@ class PDFBuilder:
                 except Exception:
                     # Fallback to text if image fails
                     pass
-            return Paragraph(md_inline(cell, self.accent_hex), style)
+            cjk_font = self._style_cjk_font("table_th") if style == ST['th'] else self._style_cjk_font("table_tc")
+            return Paragraph(md_inline(cell, self.accent_hex, cjk_font=cjk_font), style)
 
         td = [[cell_to_flowable(h, ST['th']) for h in header]]
         for r in data:
@@ -667,6 +724,13 @@ class PDFBuilder:
         lines = md.split('\n')
         i, in_code, code_buf = 0, False, []
         ST = self.ST; ah = self.accent_hex
+        self._current_part_title = ""
+        self._current_body_cjk_font = self._section_body_cjk_font("")
+
+        def inl(text, style_key="body"):
+            cjk_font = self._current_body_cjk_font if style_key in {"body", "bullet", "body_indent"} else self._style_cjk_font(style_key)
+            return md_inline(text, ah, cjk_font=cjk_font)
+
         code_max = self.cfg.get("code_max_lines", 30)
         first_h1_done = False  # Track first H1 for inline rendering
         first_h2_done = False  # Track first H2 for no page break
@@ -701,6 +765,8 @@ class PDFBuilder:
                 title = stripped.lstrip('#').strip()
                 story.append(PageBreak())
                 first_h1_done = True
+                self._current_part_title = title
+                self._current_body_cjk_font = self._section_body_cjk_font(title)
                 cm = ChapterMark(title, level=0); story.append(cm)
 
                 # Normal top spacer instead of centered
@@ -708,7 +774,7 @@ class PDFBuilder:
                 story.append(Spacer(1, self.body_h * h1_top_ratio))
 
                 hdeco = self.L["heading_decoration"]
-                story.append(Paragraph(md_inline(title, ah), ST['part']))
+                story.append(Paragraph(inl(title, "part"), ST['part']))
 
                 if hdeco == "rules":
                     story.append(Spacer(1, 4*mm))
@@ -732,7 +798,7 @@ class PDFBuilder:
                 # Use configurable top spacer (default 5% for health reports)
                 h2_top_ratio = self.cfg.get("h2_top_ratio", 0.05)
                 story.append(Spacer(1, self.body_h * h2_top_ratio))
-                story.append(Paragraph(md_inline(title, ah), ST['chapter']))
+                story.append(Paragraph(inl(title, "chapter"), ST['chapter']))
                 if hdeco == "rules":
                     story.append(Spacer(1, 5*mm))
                     story.append(HRuleCentered(self.body_w, 35*mm, 1.2, self.T["accent"]))
@@ -748,24 +814,24 @@ class PDFBuilder:
             # H3 = Section
             if stripped.startswith('### '):
                 story.append(Spacer(1, 3*mm))
-                story.append(Paragraph(md_inline(stripped[4:].strip(), ah), ST['h3']))
+                story.append(Paragraph(inl(stripped[4:].strip(), "h3"), ST['h3']))
                 story.append(Spacer(1, 1*mm))
                 i += 1; continue
 
             # H4-H6 Heading
             if stripped.startswith('#### '):
                 story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(md_inline(stripped[5:].strip(), ah), ST['h3']))
+                story.append(Paragraph(inl(stripped[5:].strip(), "h3"), ST['h3']))
                 story.append(Spacer(1, 1*mm))
                 i += 1; continue
             if stripped.startswith('##### '):
                 story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(md_inline(stripped[6:].strip(), ah), ST['h3']))
+                story.append(Paragraph(inl(stripped[6:].strip(), "h3"), ST['h3']))
                 story.append(Spacer(1, 1*mm))
                 i += 1; continue
             if stripped.startswith('###### '):
                 story.append(Spacer(1, 1*mm))
-                story.append(Paragraph(md_inline(stripped[7:].strip(), ah), ST['h3']))
+                story.append(Paragraph(inl(stripped[7:].strip(), "h3"), ST['h3']))
                 i += 1; continue
 
             # Tables
@@ -809,11 +875,11 @@ class PDFBuilder:
                                 'ImgCap', fontName="Sans", fontSize=8, leading=11,
                                 textColor=self.T["ink_faded"], alignment=TA_CENTER,
                                 spaceBefore=2*mm)
-                            img_elements.append(Paragraph(_font_wrap(esc(img_caption)), cap_style))
+                            img_elements.append(Paragraph(_font_wrap(esc(img_caption), cjk_font=self._current_body_cjk_font), cap_style))
                         story.append(KeepTogether(img_elements))
                         story.append(Spacer(1, 4*mm))
                     except Exception as e:
-                        story.append(Paragraph(_font_wrap(esc(f"[Image: {img_caption or img_path}]")), ST['body']))
+                        story.append(Paragraph(_font_wrap(esc(f"[Image: {img_caption or img_path}]"), cjk_font=self._current_body_cjk_font), ST['body']))
                 i += 1; continue
 
             # Bullets
@@ -823,7 +889,7 @@ class PDFBuilder:
                     l = lines[i].strip()
                     if l.startswith('- ') or l.startswith('* '):
                         txt = l[2:].strip()
-                        story.append(Paragraph(md_inline(txt, ah), ST['bullet']))
+                        story.append(Paragraph(inl(txt, "bullet"), ST['bullet']))
                         i += 1
                     else:
                         break
@@ -839,7 +905,7 @@ class PDFBuilder:
                     m = re.match(r'^(\d+)\.\s', l)
                     if m:
                         txt = l[m.end():].strip()
-                        story.append(Paragraph(md_inline(txt, ah), ST['bullet'], bulletText=m.group(1)+'.'))
+                        story.append(Paragraph(inl(txt, "bullet"), ST['bullet'], bulletText=m.group(1)+'.'))
                         i += 1
                     else:
                         break
@@ -854,7 +920,7 @@ class PDFBuilder:
                     i += 1
                 merged = ' '.join(plines)
                 story.append(Spacer(1, 2*mm))
-                story.append(Paragraph(md_inline(merged, ah), ST['body_indent']))
+                story.append(Paragraph(inl(merged, "body_indent"), ST['body_indent']))
                 story.append(Spacer(1, 2*mm))
                 continue
 
@@ -883,7 +949,7 @@ class PDFBuilder:
                             merged += pl
                         else:
                             merged += ' ' + pl
-                story.append(Paragraph(md_inline(merged, ah), ST['body']))
+                story.append(Paragraph(inl(merged, "body"), ST['body']))
             else:
                 # If we didn't match anything else and plines is empty,
                 # we MUST increment i to avoid infinite loop.
@@ -895,7 +961,7 @@ class PDFBuilder:
         """Build TOC entries with dot leaders and right-aligned page numbers."""
         T = self.T; ah = self.accent_hex
         s = [Spacer(1, 15*mm)]
-        s.append(Paragraph(md_inline("\u76ee    \u5f55", ah), self.ST['part']))
+        s.append(Paragraph(md_inline("\u76ee    \u5f55", ah, cjk_font=self._style_cjk_font("part")), self.ST['part']))
         s.append(HRule(self.body_w * 0.12, 1, T["accent"]))
         s.append(Spacer(1, 8*mm))
 

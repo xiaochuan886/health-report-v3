@@ -27,6 +27,17 @@ _DEFAULT_LAYOUT = {
     "margins": (25, 22, 28, 25),
     "body_font": "Sans", "body_size": 10.5, "body_leading": 17,
     "h1_size": 26, "h2_size": 18, "h3_size": 12,
+    # CJK weight controls (100..900). Requires pre-generated VF instances.
+    "part_cjk_weight": 700,
+    "chapter_cjk_weight": 700,
+    "h3_cjk_weight": 600,
+    "body_cjk_weight": 400,
+    "bullet_cjk_weight": 400,
+    "body_indent_cjk_weight": 400,
+    "table_header_cjk_weight": 700,
+    "table_cell_cjk_weight": 400,
+    # Optional per-H1 section overrides: {"第一部分 评估结果小结": 500}
+    "section_body_cjk_weight_overrides": {},
     "heading_align": "center", "heading_decoration": "rules",
     "header_style": "full", "code_style": "bg", "cover_style": "centered",
     "page_decoration": "none",
@@ -72,6 +83,23 @@ THEMES = {
         "watermark_rgba":(0.80,0.85,0.85,0.08),
         "layout": {
             "body_font":"Sans","body_size":10.5,"body_leading":17,
+            "part_cjk_weight":700,
+            "chapter_cjk_weight":700,
+            "h3_cjk_weight":600,
+            "body_cjk_weight":400,
+            "table_header_cjk_weight":700,
+            "table_cell_cjk_weight":400,
+            # Health report section tuning: summary gets slightly higher weight
+            # for scanability; interpretation and guide keep regular weight.
+            "section_body_cjk_weight_overrides": {
+                "基础信息与质控校验表": 500,
+                "第一部分 评估结果小结": 500,
+                "第二部分 癌症健康监测与指导": 400,
+                "第三部分 心脑血管健康监测与指导": 400,
+                "第四部分 大营养检测与建议": 400,
+                "第五部分 医学名词释义": 400,
+                "第六部分 健康生活方式医学指导": 400,
+            },
             "heading_align":"center","heading_decoration":"rules",
             "header_style":"full","code_style":"bg","cover_style":"centered",
             "page_decoration":"top-bar",

@@ -12,3 +12,16 @@ output/
 *.xls
 *.xlsx
 .venv/
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+*.spec
+
+# Packaging artifacts
+packaging/build/
+*.dmg
+*.pkg
+
+# Font binary instances (source-bundled fonts)
+src/report_pipeline/fonts/instances/

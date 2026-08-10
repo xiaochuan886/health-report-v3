@@ -16,14 +16,13 @@ def test_build_md2pdf_command_contains_expected_arguments():
     command = build_md2pdf_command("report.md", "report.pdf", "综合健康检测报告", "检测机构")
 
     assert command[0] == sys.executable
-    assert "--input" in command
-    assert "--theme" in command
-    assert "corporate-blue" in command
+    assert any(arg.startswith("--input=") for arg in command)
+    assert any(arg == "--theme=corporate-blue" for arg in command)
     # Verify health report specific flags
-    assert "--cover" in command
-    assert "--toc" in command
-    assert "--first-h1-inline" in command
-    assert "--base-dir" in command
+    assert "--cover=true" in command
+    assert "--toc=true" in command
+    assert "--first-h1-inline=true" in command
+    assert any(arg.startswith("--base-dir=") for arg in command)
 
 
 def test_export_pdf_raises_runtime_error_on_failure(monkeypatch):
@@ -37,6 +36,41 @@ def test_export_pdf_raises_runtime_error_on_failure(monkeypatch):
 
     with pytest.raises(RuntimeError, match="boom"):
         export_pdf("report.md", "report.pdf", "综合健康检测报告", "检测机构")
+
+
+def test_export_pdf_calls_md2pdf_in_process_when_frozen(monkeypatch):
+    called = {}
+
+    def fake_main(argv=None):
+        called["argv"] = argv
+        return None
+
+    monkeypatch.setattr("report_pipeline.pdf_export._is_frozen_app", lambda: True)
+    monkeypatch.setattr("report_pipeline.md2pdf.main", fake_main)
+    monkeypatch.setattr(
+        "report_pipeline.pdf_export.subprocess.run",
+        lambda *args, **kwargs: pytest.fail("subprocess.run should not be called in frozen mode"),
+    )
+
+    export_pdf("report.md", "report.pdf", "综合健康检测报告", "检测机构")
+
+    assert called["argv"] is not None
+    assert any(arg.startswith("--input=") for arg in called["argv"])
+    assert any(arg.startswith("--output=") for arg in called["argv"])
+
+
+def test_build_md2pdf_command_handles_dash_prefixed_patient_name():
+    command = build_md2pdf_command(
+        "report.md",
+        "report.pdf",
+        "综合健康检测报告",
+        "检测机构",
+        patient_name="--",
+        cover_patient="--  --  67岁",
+    )
+
+    assert "--header-right=--" in command
+    assert "--cover-patient=--  --  67岁" in command
 
 
 def test_calculate_stamp_positions_returns_three():

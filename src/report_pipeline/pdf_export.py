@@ -21,6 +21,10 @@ _BADGE_COLOR = (0.18, 0.55, 0.34)  # #2E8B57 sea green
 _STAMP_MARKER = "STAMP_合格"
 
 
+def _is_frozen_app() -> bool:
+    return bool(getattr(sys, "frozen", False))
+
+
 def build_md2pdf_command(
     markdown_path: str,
     pdf_path: str,
@@ -34,36 +38,31 @@ def build_md2pdf_command(
     # Resolve base directory from markdown file location (for image paths)
     base_dir = str(Path(markdown_path).parent.resolve())
 
+    def _kv(flag: str, value: str) -> str:
+        return f"{flag}={value}"
+
     cmd = [
         sys.executable,
         str(MD2PDF_SCRIPT),
-        "--input",
-        markdown_path,
-        "--output",
-        pdf_path,
-        "--title",
-        title,
-        "--author",
-        institution_name or author,
-        "--header-title",
-        "",
-        "--footer-left",
-        title,
-        "--theme",
-        "corporate-blue",
-        "--logo",
-        str(Path(__file__).parent / "logo.png"),
-        "--cover", "true",
-        "--toc", "true",
-        "--first-h1-inline", "true",
-        "--base-dir", base_dir,
+        _kv("--input", markdown_path),
+        _kv("--output", pdf_path),
+        _kv("--title", title),
+        _kv("--author", institution_name or author),
+        _kv("--header-title", ""),
+        _kv("--footer-left", title),
+        _kv("--theme", "corporate-blue"),
+        _kv("--logo", str(Path(__file__).parent / "logo.png")),
+        _kv("--cover", "true"),
+        _kv("--toc", "true"),
+        _kv("--first-h1-inline", "true"),
+        _kv("--base-dir", base_dir),
     ]
     if patient_name:
-        cmd.extend(["--header-right", patient_name])
+        cmd.append(_kv("--header-right", patient_name))
     if report_date:
-        cmd.extend(["--date", report_date])
+        cmd.append(_kv("--date", report_date))
     if cover_patient:
-        cmd.extend(["--cover-patient", cover_patient])
+        cmd.append(_kv("--cover-patient", cover_patient))
     return cmd
 
 
@@ -329,10 +328,22 @@ def export_pdf(
         institution_name=institution_name,
         cover_patient=cover_patient,
     )
-    # Use current environment for subprocess
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "md2pdf export failed")
+    if _is_frozen_app():
+        # In a PyInstaller .app, sys.executable points to the app itself.
+        # Spawning it here would relaunch the web server and hang render stage.
+        from report_pipeline.md2pdf import main as md2pdf_main
+
+        try:
+            md2pdf_main(command[2:])  # strip "<python> <script>"
+        except SystemExit as exc:  # defensive: argparse may raise this
+            code = exc.code if isinstance(exc.code, int) else 1
+            if code != 0:
+                raise RuntimeError("md2pdf export failed") from exc
+    else:
+        # Use current environment for subprocess in normal Python runtime.
+        result = subprocess.run(command, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "md2pdf export failed")
 
     # Badge stamps are now embedded as images in markdown - no post-processing needed
     # _add_green_stamps(pdf_path)  # disabled: using image badges instead

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,17 @@ def _clean(value: Any, default: str = "--") -> str:
         return default
     text = str(value).strip()
     return text if text else default
+
+
+_TRAILING_NAME_SUFFIX_RE = re.compile(r"\s*(?:[（(][^()（）]*[)）]\s*)+$")
+
+
+def _clean_patient_name(value: Any) -> str:
+    text = _clean(value)
+    if text == "--":
+        return text
+    cleaned = _TRAILING_NAME_SUFFIX_RE.sub("", text).strip()
+    return cleaned or "--"
 
 
 def load_render_bundle(input_dir: str | Path) -> dict[str, Any]:
@@ -124,7 +136,7 @@ def build_render_context(bundle: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "title": "综合健康检测报告",
-        "patient_name": _clean(first.get("病人姓名")),
+        "patient_name": _clean_patient_name(first.get("病人姓名")),
         "patient_gender": _clean(first.get("病人性别")),
         "patient_age": _clean(first.get("病人年龄")),
         "specimen_type": _clean(first.get("specimen_type")),

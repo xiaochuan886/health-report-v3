@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "report-pipeline"
 version = "0.1.0"
 requires-python = ">=3.11"
-dependencies = ["pandas", "openpyxl", "pypdf"]
+dependencies = ["pandas", "openpyxl", "pypdf", "pystray; sys_platform == 'darwin'"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

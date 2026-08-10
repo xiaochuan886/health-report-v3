@@ -114,6 +114,55 @@ cd '综合健康检测报告v3.0'
 ./run_render.py
 ```
 
+### 5. Web MVP（上传并生成报告）
+
+当前已提供一个不改动现有管线逻辑的 Web 封装层（内部仍调用 `extract` + `render` 对应函数）：
+
+```bash
+./run_web_mvp.py --host 127.0.0.1 --port 8765 --root-dir output/web-mvp
+```
+
+打开浏览器访问：
+
+`http://127.0.0.1:8765`
+
+上传：
+- `lab.xls`
+- `personal_info.xlsx`（可选）
+
+标准库由系统维护，固定路径：
+
+- `src/report_pipeline/data/standard.xlsx`
+
+生成后可在页面直接下载 `report.pdf` 或查看 `report.md`，任务产物默认写入 `output/web-mvp/jobs/<job_id>/`。
+
+### 6. 打包为本地可执行文件（同事无需安装 Python）
+
+项目已提供 PyInstaller 打包配置，并已包含运行所需资源（标准库、健康指南、字体、logo）。
+
+- 构建配置：`packaging/pyinstaller/health_report_web.spec`
+- Windows 构建脚本：`scripts/build_health_report_web.bat`
+- macOS/Linux 构建脚本：`scripts/build_health_report_web.sh`
+- 分发说明：`docs/发布说明/本地可执行包构建与分发.md`
+
+注意：Windows `.exe` 需要在 Windows 机器上执行构建脚本产出。
+
+### 7. Windows 一键启动（不打包 exe）
+
+如果不打包 `.exe`，可直接用根目录脚本启动本地服务：
+
+```bat
+start_health_report_web.bat
+```
+
+行为说明：
+
+- 自动创建 `.venv`（若不存在）
+- 自动安装运行依赖
+- 启动 Web 服务并自动打开浏览器
+- 关闭该终端窗口即停止服务
+- 失败日志：`start_health_report_web_windows.log`
+
 ## 当前首版输出
 
 真实客户首版报告当前位于：
