@@ -1,4 +1,5 @@
 .DS_Store
+**/.DS_Store
 .pytest_cache/
 __pycache__/
 *.pyc
@@ -12,11 +13,13 @@ output/
 *.xls
 *.xlsx
 
-# Allow standard rule database files and repository data/demo templates
+# Allow standard rule database files, logo, fonts, and health guide images
 !src/report_pipeline/data/standard.xlsx
 !standard.xlsx
-!src/report_pipeline/logo.png
-!src/report_pipeline/logo.svg
+!src/report_pipeline/logo.*
+!src/report_pipeline/data/health_guide_images/**
+!src/report_pipeline/fonts/*.ttf
+!src/report_pipeline/fonts/**/*.ttf
 !docs/演示文档/**
 docs/演示文档/**/.DS_Store
 
@@ -33,6 +36,5 @@ packaging/build/
 *.dmg
 *.pkg
 
-# Font binary instances (source-bundled fonts)
-src/report_pipeline/fonts/instances/
 .zcode/
+
