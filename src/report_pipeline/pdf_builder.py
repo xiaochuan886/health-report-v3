@@ -30,7 +30,7 @@ from reportlab.pdfbase import pdfmetrics
 from report_pipeline.pdf_fonts import register_fonts
 from report_pipeline.pdf_utils import (
     _is_cjk, _font_wrap, _draw_mixed, _draw_mixed_segs,
-    _flatten_transparency, esc, esc_code, md_inline
+    _flatten_transparency, resolve_image_path, esc, esc_code, md_inline
 )
 from report_pipeline.pdf_flowables import (
     _cur_chapter, _anchor_counter, _outline_level,
@@ -172,16 +172,15 @@ class PDFBuilder:
 
         # Draw logo if provided
         logo = self.cfg.get("logo", "")
-        if logo and os.path.exists(logo):
+        if logo:
             try:
-                # Resolve relative path
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(logo):
-                    logo = os.path.join(base_dir, logo)
+                logo = resolve_image_path(logo, base_dir)
 
-                img_src = _flatten_transparency(logo)
-                logo_w = 60*mm
-                c.drawImage(img_src, cx - logo_w/2, self.page_h - 50*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
+                if os.path.exists(logo):
+                    img_src = _flatten_transparency(logo)
+                    logo_w = 60*mm
+                    c.drawImage(img_src, cx - logo_w/2, self.page_h - 50*mm, width=logo_w, height=logo_w/3, preserveAspectRatio=True, mask='auto', anchor='c')
             except Exception as e:
                 print(f"Warning: Cover logo draw failed: {e}", file=sys.stderr)
 
@@ -322,19 +321,18 @@ class PDFBuilder:
         """Full-page image page after cover."""
         c.saveState(); self._draw_bg(c)
         fp = self.cfg.get("frontispiece", "")
-        if fp and os.path.exists(fp):
+        if fp:
             margin = 18*mm
             avail_w = self.page_w - 2 * margin
             avail_h = self.page_h - 2 * margin
             try:
-                # Resolve relative path using base_dir
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(fp):
-                    fp = os.path.join(base_dir, fp)
+                fp = resolve_image_path(fp, base_dir)
 
-                img_src = _flatten_transparency(fp)
-                c.drawImage(img_src, margin, margin, width=avail_w, height=avail_h,
-                            preserveAspectRatio=True, anchor='c', mask='auto')
+                if os.path.exists(fp):
+                    img_src = _flatten_transparency(fp)
+                    c.drawImage(img_src, margin, margin, width=avail_w, height=avail_h,
+                                preserveAspectRatio=True, anchor='c', mask='auto')
             except Exception:
                 pass
         c.restoreState()
@@ -350,21 +348,20 @@ class PDFBuilder:
 
         # Banner image — centered
         banner = self.cfg.get("banner", "")
-        if banner and os.path.exists(banner):
+        if banner:
             cy = self.page_h / 2
             banner_w = 150*mm
             banner_h = banner_w / 2.57
             banner_x = (self.page_w - banner_w) / 2
             banner_y = cy - banner_h / 2 + 15*mm
             try:
-                # Resolve relative path
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(banner):
-                    banner = os.path.join(base_dir, banner)
+                banner = resolve_image_path(banner, base_dir)
 
-                img_src = _flatten_transparency(banner)
-                c.drawImage(img_src, banner_x, banner_y, width=banner_w,
-                            height=banner_h, preserveAspectRatio=True, mask='auto')
+                if os.path.exists(banner):
+                    img_src = _flatten_transparency(banner)
+                    c.drawImage(img_src, banner_x, banner_y, width=banner_w,
+                                height=banner_h, preserveAspectRatio=True, mask='auto')
             except Exception:
                 pass
 
@@ -467,16 +464,15 @@ class PDFBuilder:
 
             logo = self.cfg.get("logo", "")
             title_lx = self.lm
-            if logo and os.path.exists(logo):
+            if logo:
                 try:
-                    # Resolve relative path
                     base_dir = self.cfg.get("base_dir", "")
-                    if base_dir and not os.path.isabs(logo):
-                        logo = os.path.join(base_dir, logo)
+                    logo = resolve_image_path(logo, base_dir)
 
-                    img_src = _flatten_transparency(logo)
-                    c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
-                    title_lx = self.lm + 25*mm
+                    if os.path.exists(logo):
+                        img_src = _flatten_transparency(logo)
+                        c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
+                        title_lx = self.lm + 25*mm
                 except Exception as e:
                     print(f"Warning: Header logo draw failed: {e}", file=sys.stderr)
 
@@ -530,13 +526,14 @@ class PDFBuilder:
 
         # Header left: logo
         logo = self.cfg.get("logo", "")
-        if logo and os.path.exists(logo):
+        if logo:
             try:
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(logo):
-                    logo = os.path.join(base_dir, logo)
-                img_src = _flatten_transparency(logo)
-                c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
+                logo = resolve_image_path(logo, base_dir)
+
+                if os.path.exists(logo):
+                    img_src = _flatten_transparency(logo)
+                    c.drawImage(img_src, self.lm, self.page_h - 18*mm, width=20*mm, height=10*mm, preserveAspectRatio=True, anchor='sw', mask='auto')
             except Exception as e:
                 print(f"Warning: TOC header logo draw failed: {e}", file=sys.stderr)
 
@@ -619,18 +616,18 @@ class PDFBuilder:
                 if 'badge' in img_path.lower() or '合格' in img_path:
                     return BadgeFlowable(text="合格", width=36, height=15, radius=2)
 
-                # Resolve relative path using base_dir from config
+                # Resolve relative path using base_dir from config with fallbacks
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(img_path):
-                    img_path = os.path.join(base_dir, img_path)
-                # Flatten transparency if PNG with alpha
-                img_src = _flatten_transparency(img_path)
-                try:
-                    img = RLImage(img_src, width=36, height=15)
-                    return img
-                except Exception:
-                    # Fallback to text if image fails
-                    pass
+                img_path = resolve_image_path(img_path, base_dir)
+                if os.path.exists(img_path):
+                    # Flatten transparency if PNG with alpha
+                    img_src = _flatten_transparency(img_path)
+                    try:
+                        img = RLImage(img_src, width=36, height=15)
+                        return img
+                    except Exception:
+                        # Fallback to text if image fails
+                        pass
             cjk_font = self._style_cjk_font("table_th") if style == ST['th'] else self._style_cjk_font("table_tc")
             return Paragraph(md_inline(cell, self.accent_hex, cjk_font=cjk_font), style)
 
@@ -849,8 +846,7 @@ class PDFBuilder:
                 img_caption = img_match.group(1)
                 img_path = img_match.group(2)
                 base_dir = self.cfg.get("base_dir", "")
-                if base_dir and not os.path.isabs(img_path):
-                    img_path = os.path.join(base_dir, img_path)
+                img_path = resolve_image_path(img_path, base_dir)
                 if os.path.exists(img_path):
                     try:
                         avail_w = self.body_w - 10*mm

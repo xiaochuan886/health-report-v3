@@ -124,6 +124,41 @@ def _draw_mixed_segs(c, x, y, segs):
 # ═══════════════════════════════════════════════════════════════════════
 # IMAGE UTILITIES
 # ═══════════════════════════════════════════════════════════════════════
+from pathlib import Path
+
+
+def resolve_image_path(img_path: str, base_dir: str = "") -> str:
+    """Resolve image path with fallback search locations.
+
+    Tries in order:
+    1. If img_path is absolute and exists -> return img_path
+    2. base_dir / img_path (if base_dir provided) -> if exists, return
+    3. Package data directory (report_pipeline/data / img_path) -> if exists, return
+    4. Package root directory (report_pipeline / img_path) -> if exists, return
+    5. Current working directory / img_path -> if exists, return
+    6. Return joined/original path if not found.
+    """
+    if not img_path:
+        return img_path
+    if os.path.isabs(img_path) and os.path.exists(img_path):
+        return img_path
+
+    candidates: list[str] = []
+    if base_dir:
+        candidates.append(os.path.join(base_dir, img_path))
+
+    pkg_dir = Path(__file__).parent
+    candidates.append(str(pkg_dir / "data" / img_path))
+    candidates.append(str(pkg_dir / img_path))
+    candidates.append(str(Path.cwd() / img_path))
+
+    for cand in candidates:
+        if os.path.exists(cand):
+            return cand
+
+    return os.path.join(base_dir, img_path) if base_dir else img_path
+
+
 def _flatten_transparency(img_path: str):
     """Convert transparent PNG (or images with alpha/transparency) to white background
     for consistent PDF rendering. Handles RGBA, LA, PA, and P (with trans) modes.

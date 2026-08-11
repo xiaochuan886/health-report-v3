@@ -117,3 +117,14 @@ def test_add_green_stamps_no_marker_no_error(tmp_path, monkeypatch):
 
     # Should not raise
     _add_green_stamps(str(pdf_path))
+
+
+def test_resolve_image_path_falls_back_to_package_data_dir(tmp_path):
+    from report_pipeline.pdf_utils import resolve_image_path
+    import os
+
+    # When given a relative image path that does not exist in base_dir
+    resolved = resolve_image_path("health_guide_images/cancer_cells.png", base_dir=str(tmp_path))
+    assert os.path.exists(resolved)
+    assert "cancer_cells.png" in resolved
+
